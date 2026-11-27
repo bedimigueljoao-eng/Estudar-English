@@ -61,7 +61,10 @@ export async function loadAppState(): Promise<AppState> {
       req.onerror = () => reject(req.error);
     });
     if (record && Array.isArray(record.topics) && Array.isArray(record.sessions)) {
-      return record;
+      return {
+        ...record,
+        dialogues: Array.isArray(record.dialogues) ? record.dialogues : createInitialAppState().dialogues,
+      };
     }
   } catch {
     // Fallback to localStorage below
@@ -72,7 +75,10 @@ export async function loadAppState(): Promise<AppState> {
     if (raw) {
       const parsed = JSON.parse(raw) as AppState;
       if (parsed && Array.isArray(parsed.topics) && Array.isArray(parsed.sessions)) {
-        return parsed;
+        return {
+          ...parsed,
+          dialogues: Array.isArray(parsed.dialogues) ? parsed.dialogues : createInitialAppState().dialogues,
+        };
       }
     }
   } catch {

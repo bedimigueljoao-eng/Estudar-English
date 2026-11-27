@@ -58,7 +58,10 @@ export const SettingsBackupView: React.FC<SettingsBackupViewProps> = ({
         setRestoreMessage('Invalid V2 backup JSON structure.');
         return;
       }
-      onRestoreFullBackup(parsed);
+      onRestoreFullBackup({
+        ...parsed,
+        dialogues: Array.isArray(parsed.dialogues) ? parsed.dialogues : [],
+      });
       setRestoreMessage(`Restored backup (${parsed.sessions.length} sessions, ${parsed.topics.length} topics).`);
     } catch {
       setRestoreMessage('Could not parse backup JSON file.');

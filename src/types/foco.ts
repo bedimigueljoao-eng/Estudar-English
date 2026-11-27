@@ -159,6 +159,21 @@ export interface AchievementDefinition {
   targetValue: number;
 }
 
+export interface DialogueEntry {
+  id: string;
+  title: string;
+  level: CEFRLevel;
+  topicId: string;
+  topicTitle: string;
+  sourceLabel: string; // e.g. "AI Tutor Summary", "Roleplay", "Real Conversation"
+  script: string; // Multi-line dialogue text e.g. "You: ...\nPartner: ..."
+  takeaways: string; // Summary / corrections / expressions to consolidate
+  isFavourite: boolean;
+  practicedCount: number;
+  lastPracticedAt?: number;
+  createdAt: number;
+}
+
 export interface AppSettings {
   theme: 'light' | 'dark';
   notificationsEnabled: boolean;
@@ -176,6 +191,7 @@ export interface AppState {
   media: MediaEntry[];
   phrases: PhraseEntry[];
   questions: QuestionEntry[];
+  dialogues: DialogueEntry[];
   settings: AppSettings;
   activeTimer: ActiveTimerState;
   lastUpdatedAt: number;
@@ -187,6 +203,7 @@ export type AppSection =
   | 'levels'
   | 'timer'
   | 'resources'
+  | 'dialogues'
   | 'phrases'
   | 'questions'
   | 'movies'

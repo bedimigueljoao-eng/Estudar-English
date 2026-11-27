@@ -207,6 +207,19 @@ const TOPICS_BY_LEVEL: Record<CEFRLevel, RawTopicSpec[]> = {
       ],
       estimatedMinutes: 90,
     },
+    {
+      title: 'Wh-Questions, Contractions & Asking for Clarification',
+      description: 'Ask natural Who/What/Where/When/Why/How questions, pronounce everyday contractions (I’m, don’t, didn’t), and politely ask people to repeat or slow down.',
+      grammarFocus: 'Wh-question word order (do/does/did) + survival clarification phrases',
+      keyVocabulary: ['Could you repeat that?', 'What does ... mean?', 'How do you say...', 'Pardon?', 'Slow down, please'],
+      speakingFocusPrompt: 'Ask 8 natural Wh-questions aloud and practice 4 polite ways to clarify when you miss a word.',
+      speakingDrills: [
+        'Drill Who/What/Where/When/Why/How questions at conversational speed',
+        'Contrast full forms vs natural spoken contractions (I am -> I’m, do not -> don’t)',
+        'Roleplay asking a speaker to repeat and spell an unfamiliar word',
+      ],
+      estimatedMinutes: 75,
+    },
   ],
   A2: [
     {
@@ -403,6 +416,19 @@ const TOPICS_BY_LEVEL: Record<CEFRLevel, RawTopicSpec[]> = {
         'Answer 5 rapid-fire mixed-tense questions',
       ],
       estimatedMinutes: 100,
+    },
+    {
+      title: 'Making Comparisons, Preferences & Simple Advice',
+      description: 'Explain personal preferences, compare two options clearly with reasons, and offer helpful suggestions in everyday conversations.',
+      grammarFocus: 'Comparatives/superlatives + prefer X to Y + should/could/why don’t you',
+      keyVocabulary: ['In my opinion', 'I’d rather', 'Much better than', 'Why don’t you', 'Worth trying'],
+      speakingFocusPrompt: 'Compare two cities, jobs, or learning methods aloud for 90 seconds and explain which you prefer and why.',
+      speakingDrills: [
+        'Compare 4 everyday pairs aloud using "much more..." and "not as ... as"',
+        'Give practical spoken advice for 3 friend dilemmas',
+        'State a preference and justify it with two concrete reasons',
+      ],
+      estimatedMinutes: 85,
     },
   ],
   B1: [
@@ -601,6 +627,19 @@ const TOPICS_BY_LEVEL: Record<CEFRLevel, RawTopicSpec[]> = {
       ],
       estimatedMinutes: 120,
     },
+    {
+      title: 'Circumlocution: Explaining Words You Forget',
+      description: 'Keep speaking smoothly even when you forget an exact English word by describing its purpose, shape, category, or opposite.',
+      grammarFocus: 'Relative clauses for defining (It’s a thing that..., Someone who..., Used for + -ing)',
+      keyVocabulary: ['It’s a kind of', 'It’s used for', 'Similar to', 'The opposite of', 'You know, the thing that'],
+      speakingFocusPrompt: 'Describe 6 everyday objects and abstract feelings aloud for 2 minutes without saying their actual names.',
+      speakingDrills: [
+        'Describe 5 household tools using "It’s something you use to..."',
+        'Explain 3 cultural foods from your country without translating the noun',
+        'Practice bridging smoothly when a word slips mid-sentence',
+      ],
+      estimatedMinutes: 95,
+    },
   ],
   B2: [
     {
@@ -797,6 +836,19 @@ const TOPICS_BY_LEVEL: Record<CEFRLevel, RawTopicSpec[]> = {
         'Shadow 5 minutes of fast native panel discussion',
       ],
       estimatedMinutes: 130,
+    },
+    {
+      title: 'Thinking in English & Filler-Free Fluency',
+      description: 'Stop translating word-for-word from your native language; organize 2-minute spontaneous answers directly in English chunks.',
+      grammarFocus: 'Chunking, natural stalling markers (Let me think, Good question), and self-repair',
+      keyVocabulary: ['Put another way', 'Off the top of my head', 'What comes to mind', 'To clarify', 'In short'],
+      speakingFocusPrompt: 'Respond immediately to 4 random everyday questions with zero native-language translation and minimal "uhh" pauses.',
+      speakingDrills: [
+        '60-second object-narration drill describing everything in sight directly in English',
+        'Replace awkward silence with 4 natural English thinking phrases',
+        'Record and audit a 2-minute spontaneous answer for translated phrasing',
+      ],
+      estimatedMinutes: 110,
     },
   ],
   C1: [
@@ -995,6 +1047,19 @@ const TOPICS_BY_LEVEL: Record<CEFRLevel, RawTopicSpec[]> = {
       ],
       estimatedMinutes: 150,
     },
+    {
+      title: 'Pragmatics, Tone & Politeness Calibration',
+      description: 'Read social distance and calibrate directness, warmth, or authority smoothly across emails, calls, and live disagreements.',
+      grammarFocus: 'Pragmatic hedging, negative questions, and tactful modal distancing',
+      keyVocabulary: ['With all due respect', 'Correct me if I’m wrong', 'I’d be inclined to', 'Tactful', 'Nuance'],
+      speakingFocusPrompt: 'Deliver the exact same feedback message in three registers: casual friend, peer colleague, and senior client.',
+      speakingDrills: [
+        'Three-register calibration drill recorded back-to-back',
+        'Soften 5 blunt statements without losing clarity of the request',
+        'Practice warm, confident vocal tone when setting firm boundaries',
+      ],
+      estimatedMinutes: 120,
+    },
   ],
   C2: [
     {
@@ -1191,6 +1256,19 @@ const TOPICS_BY_LEVEL: Record<CEFRLevel, RawTopicSpec[]> = {
         'Archive capstone audio in your local study history',
       ],
       estimatedMinutes: 180,
+    },
+    {
+      title: 'Zero-Hesitation Live Banter & Conversational Agility',
+      description: 'Respond instantaneously to rapid turns, playful teasing, topic pivots, and unexpected questions with native-like ease.',
+      grammarFocus: 'Ellipsis, rapid back-channeling, idiomatic callbacks, and prosodic timing',
+      keyVocabulary: ['Fair play', 'Touché', 'Come to think of it', 'Speaking of which', 'On that note'],
+      speakingFocusPrompt: 'Practice rapid 30-second conversational pivots across 4 unrelated topics while keeping tone natural and engaging.',
+      speakingDrills: [
+        'Pivot smoothly across 4 unexpected topic shifts in 2 minutes',
+        'Shadow fast unscripted two-host podcast banter matching timing',
+        'Deliver a sharp callback to an earlier point in a mock conversation',
+      ],
+      estimatedMinutes: 140,
     },
   ],
 };

@@ -2,6 +2,28 @@ import { Capacitor, registerPlugin } from '@capacitor/core';
 import type { ActiveTimerState, CEFRLevel, SkillType, TimerActivity } from '../types/foco';
 import { formatHMS } from '../utils/analytics';
 
+interface FocoAndroidBridgeInterface {
+  startSession(
+    activity: string,
+    skill: string,
+    level: string,
+    topicTitle: string,
+    startedAtMs: number,
+    accumulatedMs: number
+  ): void;
+  pauseSession(): void;
+  resumeSession(accumulatedMs: number): void;
+  stopSession(): void;
+  getActiveSessionJson(): string;
+  requestNotificationPermission(): boolean;
+}
+
+declare global {
+  interface Window {
+    FocoAndroidBridge?: FocoAndroidBridgeInterface;
+  }
+}
+
 interface StudyTimerNativePlugin {
   startSession(options: {
     activity: string;
@@ -26,8 +48,13 @@ interface StudyTimerNativePlugin {
 
 const StudyTimerNative = registerPlugin<StudyTimerNativePlugin>('StudyTimer');
 
+const getAndroidWebViewBridge = (): FocoAndroidBridgeInterface | null =>
+  typeof window !== 'undefined' && window.FocoAndroidBridge ? window.FocoAndroidBridge : null;
+
 export const isNativeAndroid = (): boolean =>
-  typeof window !== 'undefined' && Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
+  typeof window !== 'undefined' &&
+  (Boolean(window.FocoAndroidBridge) ||
+    (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'));
 
 export function computeElapsedMs(timer: ActiveTimerState, nowMs = Date.now()): number {
   if (timer.status === 'idle') return 0;
@@ -37,10 +64,28 @@ export function computeElapsedMs(timer: ActiveTimerState, nowMs = Date.now()): n
 }
 
 export async function syncNativeTimerStart(timer: ActiveTimerState): Promise<void> {
-  if (isNativeAndroid()) {
+  const activityLabel =
+    timer.activity === 'Custom Activities' && timer.customActivityName
+      ? timer.customActivityName
+      : timer.activity;
+  const webViewBridge = getAndroidWebViewBridge();
+  if (webViewBridge) {
+    try {
+      webViewBridge.startSession(
+        activityLabel,
+        timer.skill,
+        timer.level,
+        timer.topicTitle,
+        timer.startedAtMs ?? Date.now(),
+        timer.accumulatedMs
+      );
+    } catch {
+      // ignore
+    }
+  } else if (isNativeAndroid()) {
     try {
       await StudyTimerNative.startSession({
-        activity: timer.activity === 'Custom Activities' && timer.customActivityName ? timer.customActivityName : timer.activity,
+        activity: activityLabel,
         skill: timer.skill,
         level: timer.level,
         topicTitle: timer.topicTitle,
@@ -55,7 +100,14 @@ export async function syncNativeTimerStart(timer: ActiveTimerState): Promise<voi
 }
 
 export async function syncNativeTimerPause(timer: ActiveTimerState): Promise<void> {
-  if (isNativeAndroid()) {
+  const webViewBridge = getAndroidWebViewBridge();
+  if (webViewBridge) {
+    try {
+      webViewBridge.pauseSession();
+    } catch {
+      // ignore
+    }
+  } else if (isNativeAndroid()) {
     try {
       await StudyTimerNative.pauseSession({ accumulatedMs: timer.accumulatedMs });
     } catch {
@@ -66,7 +118,14 @@ export async function syncNativeTimerPause(timer: ActiveTimerState): Promise<voi
 }
 
 export async function syncNativeTimerResume(timer: ActiveTimerState): Promise<void> {
-  if (isNativeAndroid()) {
+  const webViewBridge = getAndroidWebViewBridge();
+  if (webViewBridge) {
+    try {
+      webViewBridge.resumeSession(timer.accumulatedMs);
+    } catch {
+      // ignore
+    }
+  } else if (isNativeAndroid()) {
     try {
       await StudyTimerNative.resumeSession({
         resumedAtMs: timer.lastResumedAtMs ?? Date.now(),
@@ -80,7 +139,14 @@ export async function syncNativeTimerResume(timer: ActiveTimerState): Promise<vo
 }
 
 export async function syncNativeTimerStop(): Promise<void> {
-  if (isNativeAndroid()) {
+  const webViewBridge = getAndroidWebViewBridge();
+  if (webViewBridge) {
+    try {
+      webViewBridge.stopSession();
+    } catch {
+      // ignore
+    }
+  } else if (isNativeAndroid()) {
     try {
       await StudyTimerNative.stopSession();
     } catch {
@@ -94,6 +160,15 @@ export async function syncNativeTimerStop(): Promise<void> {
 }
 
 export async function pullNativeTimerState(): Promise<Awaited<ReturnType<StudyTimerNativePlugin['getActiveSession']>> | null> {
+  const webViewBridge = getAndroidWebViewBridge();
+  if (webViewBridge) {
+    try {
+      const raw = webViewBridge.getActiveSessionJson();
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
   if (!isNativeAndroid()) return null;
   try {
     return await StudyTimerNative.getActiveSession();
@@ -103,6 +178,14 @@ export async function pullNativeTimerState(): Promise<Awaited<ReturnType<StudyTi
 }
 
 export async function requestTimerNotificationPermission(): Promise<boolean> {
+  const webViewBridge = getAndroidWebViewBridge();
+  if (webViewBridge) {
+    try {
+      return webViewBridge.requestNotificationPermission();
+    } catch {
+      return false;
+    }
+  }
   if (isNativeAndroid()) {
     try {
       const res = await StudyTimerNative.requestNotificationPermission();

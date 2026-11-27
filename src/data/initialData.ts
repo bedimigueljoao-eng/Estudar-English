@@ -1,6 +1,7 @@
 import type {
   AchievementDefinition,
   AppState,
+  DialogueEntry,
   MediaEntry,
   PhraseEntry,
   QuestionEntry,
@@ -459,6 +460,71 @@ const STARTER_MEDIA: MediaEntry[] = [
   },
 ];
 
+const STARTER_DIALOGUES: DialogueEntry[] = [
+  {
+    id: 'dlg-1',
+    title: 'Morning Café & Small Talk (AI Tutor Summary)',
+    level: 'A1',
+    topicId: 'topic-a1-7',
+    topicTitle: 'Food, Drinks & Café Ordering',
+    sourceLabel: 'AI Tutor Summary',
+    script: [
+      'AI: Good morning! Welcome to Corner Café. What can I get started for you?',
+      'You: Good morning! Could I have a medium iced latte, please?',
+      'AI: Of course. Would you like regular milk or oat milk?',
+      'You: Oat milk, please. And do you have any fresh croissants today?',
+      'AI: Yes, we just took a batch out of the oven. Anything else?',
+      'You: That’s all for now. How much is the total?',
+    ].join('\n'),
+    takeaways:
+      'Use "Could I have..." instead of "I want...". Remember "a batch out of the oven" means freshly baked.',
+    isFavourite: true,
+    practicedCount: 3,
+    lastPracticedAt: Date.now() - 3600000 * 14,
+    createdAt: Date.now() - 86400000 * 3,
+  },
+  {
+    id: 'dlg-2',
+    title: 'Hotel Check-In & Room Request',
+    level: 'A2',
+    topicId: 'topic-a2-1',
+    topicTitle: 'Travel, Airports & Accommodation',
+    sourceLabel: 'Roleplay',
+    script: [
+      'Receptionist: Welcome to Harbor Hotel. Do you have a reservation?',
+      'You: Yes, I booked a double room for three nights under Miguel.',
+      'Receptionist: Got it. Would you prefer a room on a higher floor?',
+      'You: If possible, yes—something quiet away from the elevator, please.',
+      'Receptionist: No problem at all. Breakfast is served from seven to ten.',
+      'You: Great, thank you! What is the Wi-Fi password?',
+    ].join('\n'),
+    takeaways:
+      'Practiced "under [name]" for bookings and "away from the elevator" for polite room requests.',
+    isFavourite: false,
+    practicedCount: 1,
+    createdAt: Date.now() - 86400000 * 2,
+  },
+  {
+    id: 'dlg-3',
+    title: 'Explaining Remote Work Focus (AI Debate Recap)',
+    level: 'B1',
+    topicId: 'topic-b1-1',
+    topicTitle: 'Expressing Opinions & Agreeing/Disagreeing',
+    sourceLabel: 'AI Tutor Summary',
+    script: [
+      'AI: Some managers say remote workers collaborate less. What do you think?',
+      'You: I see their point, especially for quick brainstorming. However, for deep focus, working from home saves two hours of commuting.',
+      'AI: True, though don’t you think new team members feel isolated?',
+      'You: That’s a fair point. That’s why a hybrid schedule with two office days works best in my opinion.',
+    ].join('\n'),
+    takeaways:
+      'Correction from AI chat: say "saves two hours of commuting" instead of "economize two hours". Keep using "That’s a fair point" to bridge smoothly.',
+    isFavourite: true,
+    practicedCount: 2,
+    createdAt: Date.now() - 86400000,
+  },
+];
+
 export function createInitialAppState(): AppState {
   return {
     version: 2,
@@ -476,6 +542,7 @@ export function createInitialAppState(): AppState {
     media: STARTER_MEDIA,
     phrases: STARTER_PHRASES,
     questions: STARTER_QUESTIONS,
+    dialogues: STARTER_DIALOGUES,
     settings: {
       theme: 'dark',
       notificationsEnabled: true,

@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   Map as MapIcon,
   MessageSquare,
+  MessagesSquare,
   Moon,
   Settings as SettingsIcon,
   Sparkles,
@@ -23,6 +24,7 @@ import {
   SkillAnalysisView,
 } from './components/AnalyticsGoalsHistoryView';
 import { DashboardJourneyView } from './components/DashboardJourneyView';
+import { DialoguesView } from './components/DialoguesView';
 import { LevelsRoadmapView } from './components/LevelsRoadmapView';
 import {
   MoviesSeriesView,
@@ -76,6 +78,7 @@ const NAV_GROUPS: Array<{
     group: 'Library & Speaking',
     items: [
       { id: 'resources', label: 'Resources', icon: FolderOpen },
+      { id: 'dialogues', label: 'Dialogues', icon: MessagesSquare },
       { id: 'phrases', label: 'Phrase Bank', icon: BookOpen },
       { id: 'questions', label: 'Question Bank', icon: MessageSquare },
       { id: 'movies', label: 'Movies & Series', icon: Film },
@@ -92,7 +95,7 @@ const NAV_GROUPS: Array<{
   },
 ];
 
-const PRACTICE_SECTIONS: AppSection[] = ['resources', 'phrases', 'questions', 'movies'];
+const PRACTICE_SECTIONS: AppSection[] = ['resources', 'dialogues', 'phrases', 'questions', 'movies'];
 const INSIGHTS_SECTIONS: AppSection[] = ['statistics', 'goals', 'history', 'settings'];
 
 export default function App() {
@@ -121,8 +124,11 @@ export default function App() {
       }
       setState(loaded);
     });
+    const onOpenTimer = () => setSection('timer');
+    window.addEventListener('foco-open-timer', onOpenTimer);
     return () => {
       mounted = false;
+      window.removeEventListener('foco-open-timer', onOpenTimer);
     };
   }, []);
 
@@ -565,6 +571,7 @@ export default function App() {
             {(
               [
                 ['resources', 'Resources'],
+                ['dialogues', 'Dialogues'],
                 ['phrases', 'Phrase Bank'],
                 ['questions', 'Question Bank'],
                 ['movies', 'Movies & Series'],
@@ -719,6 +726,31 @@ export default function App() {
                 updateState((prev) => ({
                   ...prev,
                   resources: prev.resources.filter((r) => r.id !== id),
+                }))
+              }
+            />
+          )}
+
+          {section === 'dialogues' && (
+            <DialoguesView
+              dialogues={state.dialogues}
+              topics={state.topics}
+              onAddDialogue={(d) =>
+                updateState((prev) => ({
+                  ...prev,
+                  dialogues: [d, ...prev.dialogues],
+                }))
+              }
+              onUpdateDialogue={(updated) =>
+                updateState((prev) => ({
+                  ...prev,
+                  dialogues: prev.dialogues.map((d) => (d.id === updated.id ? updated : d)),
+                }))
+              }
+              onDeleteDialogue={(id) =>
+                updateState((prev) => ({
+                  ...prev,
+                  dialogues: prev.dialogues.filter((d) => d.id !== id),
                 }))
               }
             />

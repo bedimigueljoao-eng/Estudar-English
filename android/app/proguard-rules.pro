@@ -1,4 +1,4 @@
 -keep class com.focoenglish.mobile.** { *; }
--keepclassmembers class * {
-    @com.getcapacitor.PluginMethod <methods>;
+-keepclassmembers class com.focoenglish.mobile.MainActivity$FocoAndroidBridge {
+    @android.webkit.JavascriptInterface <methods>;
 }
