@@ -398,10 +398,15 @@ export default function App() {
             : 'insights';
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 flex flex-col lg:flex-row">
+    <div className="min-h-screen overflow-x-hidden bg-slate-50 dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 flex flex-col lg:flex-row">
       {/* Desktop Left Sidebar */}
       <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:shrink-0 lg:sticky lg:top-0 lg:h-screen border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-        <div className="h-14 px-5 flex items-center border-b border-slate-200 dark:border-slate-800">
+        <div className="h-14 px-5 flex items-center gap-2.5 border-b border-slate-200 dark:border-slate-800">
+          <img
+            src="/pwa-192x192.png"
+            alt="FocoEnglish icon"
+            className="h-7 w-7 rounded-lg object-cover shrink-0 shadow-sm"
+          />
           <span className="font-display text-base font-extrabold tracking-tight text-slate-900 dark:text-slate-50 whitespace-nowrap">
             FOCOENGLISH
           </span>
@@ -468,11 +473,18 @@ export default function App() {
 
       {/* Main Column */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Compact Top Bar (Mobile <= 48px, Desktop 56px, strict 3-zone) */}
-        <header className="sticky top-0 z-30 h-12 lg:h-14 px-4 sm:px-6 flex items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md">
-          <span className="lg:hidden font-display text-sm font-extrabold tracking-tight text-slate-900 dark:text-slate-50 whitespace-nowrap shrink-0">
-            FOCOENGLISH
-          </span>
+        {/* Compact Top Bar (Mobile 48px, Desktop 56px, strict 3-zone) */}
+        <header className="sticky top-0 z-30 h-12 lg:h-14 px-4 sm:px-6 flex items-center justify-between gap-4 border-b border-slate-200/80 dark:border-slate-800/90 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl">
+          <div className="lg:hidden flex items-center gap-2 shrink-0">
+            <img
+              src="/pwa-192x192.png"
+              alt="FocoEnglish icon"
+              className="h-7 w-7 rounded-lg object-cover shrink-0 shadow-sm"
+            />
+            <span className="font-display text-sm font-extrabold tracking-tight text-slate-900 dark:text-slate-50 whitespace-nowrap">
+              FOCOENGLISH
+            </span>
+          </div>
 
           <nav className="hidden lg:flex items-center gap-6 text-sm font-medium text-slate-600 dark:text-slate-400">
             <button
@@ -557,23 +569,23 @@ export default function App() {
 
         {/* Mobile Contextual Sub-Tabs for Multi-Section Hubs */}
         {mobileTabGroup === 'journey' && (
-          <div className="lg:hidden px-4 pt-3 flex items-center gap-2">
+          <div className="lg:hidden border-b border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/70 px-4 py-2 flex items-center gap-2">
             <button
               onClick={() => setSection('journey')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
+              className={`min-h-[36px] px-3.5 rounded-xl text-xs font-semibold whitespace-nowrap transition active:scale-[0.98] ${
                 section === 'journey'
-                  ? 'bg-teal-600 text-white'
-                  : 'bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                  ? 'bg-teal-600 text-white shadow-sm shadow-teal-600/20'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
               }`}
             >
               English Journey
             </button>
             <button
               onClick={() => setSection('dashboard')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
+              className={`min-h-[36px] px-3.5 rounded-xl text-xs font-semibold whitespace-nowrap transition active:scale-[0.98] ${
                 section === 'dashboard'
-                  ? 'bg-teal-600 text-white'
-                  : 'bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                  ? 'bg-teal-600 text-white shadow-sm shadow-teal-600/20'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
               }`}
             >
               Dashboard
@@ -582,7 +594,7 @@ export default function App() {
         )}
 
         {mobileTabGroup === 'practice' && (
-          <div className="lg:hidden px-4 pt-3 flex items-center gap-1.5 overflow-x-auto">
+          <div className="lg:hidden border-b border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/70 px-4 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar snap-x">
             {(
               [
                 ['resources', 'Resources'],
@@ -596,10 +608,10 @@ export default function App() {
               <button
                 key={id}
                 onClick={() => setSection(id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap ${
+                className={`min-h-[36px] px-3.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 snap-start transition active:scale-[0.98] ${
                   section === id
-                    ? 'bg-teal-600 text-white'
-                    : 'bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                    ? 'bg-teal-600 text-white shadow-sm shadow-teal-600/20'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                 }`}
               >
                 {lbl}
@@ -609,7 +621,7 @@ export default function App() {
         )}
 
         {mobileTabGroup === 'insights' && (
-          <div className="lg:hidden px-4 pt-3 flex items-center gap-1.5 overflow-x-auto">
+          <div className="lg:hidden border-b border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/70 px-4 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar snap-x">
             {(
               [
                 ['statistics', 'Skill Analysis'],
@@ -621,10 +633,10 @@ export default function App() {
               <button
                 key={id}
                 onClick={() => setSection(id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap ${
+                className={`min-h-[36px] px-3.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 snap-start transition active:scale-[0.98] ${
                   section === id
-                    ? 'bg-teal-600 text-white'
-                    : 'bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                    ? 'bg-teal-600 text-white shadow-sm shadow-teal-600/20'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                 }`}
               >
                 {lbl}
@@ -634,7 +646,7 @@ export default function App() {
         )}
 
         {/* Scrollable Content Viewport */}
-        <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-5 pb-24 lg:pb-10">
+        <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-6 pb-24 lg:pb-10">
           {(section === 'journey' || section === 'dashboard') && (
             <DashboardJourneyView
               mode={section}
@@ -945,12 +957,12 @@ export default function App() {
         </main>
       </div>
 
-      {/* Fixed Mobile Bottom Navigation Bar (56px height, <=15% total viewport sticky cap) */}
+      {/* Fixed Mobile Bottom Navigation Bar (64px height, <=15% total viewport sticky cap) */}
       <nav
         aria-label="Mobile bottom navigation"
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md pb-safe"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-[0_-4px_20px_-6px_rgba(15,23,42,0.08)] dark:shadow-[0_-4px_24px_-8px_rgba(0,0,0,0.45)] pb-safe"
       >
-        <div className="grid grid-cols-5 h-14 items-center">
+        <div className="grid grid-cols-5 h-16 items-center px-1">
           {(
             [
               { id: 'journey', label: 'Journey', icon: Compass, group: 'journey' },
@@ -962,18 +974,27 @@ export default function App() {
           ).map((tab) => {
             const Icon = tab.icon;
             const active = mobileTabGroup === tab.group;
+            const showLiveTime = tab.group === 'timer' && timerIsActive;
             return (
               <button
                 key={tab.group}
                 onClick={() => setSection(tab.id)}
-                className={`min-h-[44px] flex flex-col items-center justify-center gap-0.5 transition ${
+                className={`min-h-[48px] flex flex-col items-center justify-center gap-0.5 rounded-xl transition active:scale-[0.95] ${
                   active
-                    ? 'text-teal-600 dark:text-teal-400'
-                    : 'text-slate-500 dark:text-slate-400'
+                    ? 'text-teal-700 dark:text-teal-400'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                 }`}
               >
-                <Icon className="h-5 w-5" />
-                <span className="text-[10px] font-medium tracking-tight">{tab.label}</span>
+                <span
+                  className={`px-3 py-1 rounded-xl flex items-center justify-center transition ${
+                    active ? 'bg-teal-600/12 dark:bg-teal-500/15' : ''
+                  }`}
+                >
+                  <Icon className="h-[19px] w-[19px]" />
+                </span>
+                <span className="text-[10px] font-semibold tracking-tight whitespace-nowrap">
+                  {showLiveTime ? formatHMS(activeElapsedSec) : tab.label}
+                </span>
               </button>
             );
           })}

@@ -365,7 +365,7 @@ export const DialoguesView: React.FC<DialoguesViewProps> = ({
             </label>
           </div>
 
-          <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 overflow-x-auto">
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 overflow-x-auto no-scrollbar">
             {SPEED_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
@@ -811,7 +811,8 @@ export const DialoguesView: React.FC<DialoguesViewProps> = ({
       {/* Add / Edit Dialogue Modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
-          <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 space-y-4">
+          <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 pb-safe space-y-4">
+            <div className="sm:hidden w-10 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 mx-auto -mt-1 mb-2" />
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-slate-900 dark:text-slate-50">
                 {editingDialogue ? 'Edit Saved Dialogue' : 'Save Dialogue / AI Recap'}

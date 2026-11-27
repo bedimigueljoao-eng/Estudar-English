@@ -41,8 +41,8 @@ const ProgressRing: React.FC<{ percent: number; label: string; subtext: string }
   const dash = (Math.min(100, Math.max(0, percent)) / 100) * c;
 
   return (
-    <div className="flex items-center gap-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-      <div className="relative h-16 w-16 shrink-0">
+    <div className="flex flex-col items-center text-center sm:flex-row sm:text-left gap-2 sm:gap-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 sm:p-4 shadow-xs">
+      <div className="relative h-14 w-14 sm:h-16 sm:w-16 shrink-0">
         <svg viewBox="0 0 64 64" className="h-full w-full -rotate-90">
           <circle
             cx="32"
@@ -68,9 +68,11 @@ const ProgressRing: React.FC<{ percent: number; label: string; subtext: string }
           {percent}%
         </div>
       </div>
-      <div className="min-w-0">
-        <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{label}</p>
-        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums truncate">
+      <div className="min-w-0 w-full">
+        <p className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
+          {label}
+        </p>
+        <p className="mt-0.5 text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums truncate">
           {subtext}
         </p>
       </div>
@@ -117,35 +119,35 @@ export const DashboardJourneyView: React.FC<DashboardJourneyViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Primary Journey Hero Anchor */}
-      <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-teal-700 dark:text-teal-400">
+      <section className="rounded-3xl sm:rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-gradient-to-br from-white via-white to-teal-50/70 dark:from-slate-900 dark:via-slate-900 dark:to-teal-950/30 p-5 sm:p-6 shadow-xs">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 sm:gap-5">
+          <div className="space-y-1.5 sm:space-y-2">
+            <p className="text-xs font-semibold text-teal-700 dark:text-teal-400">
               {mode === 'journey' ? 'English Journey' : 'Study Overview'} · Offline Personal Companion
             </p>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50">
+            <h1 className="text-3xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50">
               {formatHoursMinutes(metrics.totalSeconds)} studied
             </h1>
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              Current Level <span className="font-semibold text-slate-900 dark:text-slate-100">{state.goals.currentLevel}</span>
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+              Current <span className="font-semibold text-slate-900 dark:text-slate-100">{state.goals.currentLevel}</span>
               <span aria-hidden="true"> · </span>
-              Target Level <span className="font-semibold text-slate-900 dark:text-slate-100">{state.goals.targetLevel}</span>
+              Target <span className="font-semibold text-slate-900 dark:text-slate-100">{state.goals.targetLevel}</span>
               <span aria-hidden="true"> · </span>
-              Speaking Share <span className="font-mono font-semibold tabular-nums text-teal-700 dark:text-teal-400">{metrics.speakingSharePercent}%</span>
+              Speaking <span className="font-mono font-semibold tabular-nums text-teal-700 dark:text-teal-400">{metrics.speakingSharePercent}%</span>
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="grid grid-cols-1 sm:flex sm:flex-wrap items-center gap-2.5 sm:gap-3">
             <button
               onClick={() => onQuickStartTimer('Speaking')}
-              className="min-h-[44px] inline-flex items-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-[0.98] px-5 py-2.5 text-sm font-semibold text-white transition"
+              className="w-full sm:w-auto min-h-[48px] inline-flex items-center justify-center gap-2 rounded-2xl sm:rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-[0.98] px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-teal-600/20 transition"
             >
               <Mic className="h-4 w-4" />
               <span className="whitespace-nowrap">Practice Speaking (Skill)</span>
             </button>
             <button
               onClick={() => onNavigate('timer')}
-              className="min-h-[44px] inline-flex items-center gap-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 px-4 py-2.5 text-sm font-medium text-slate-800 dark:text-slate-200 transition"
+              className="w-full sm:w-auto min-h-[46px] inline-flex items-center justify-center gap-2 rounded-2xl sm:rounded-xl border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-[0.98] px-4 py-2.5 text-sm font-medium text-slate-800 dark:text-slate-200 transition"
             >
               <Play className="h-4 w-4" />
               <span className="whitespace-nowrap">Open Timer</span>
@@ -154,29 +156,37 @@ export const DashboardJourneyView: React.FC<DashboardJourneyViewProps> = ({
         </div>
 
         {/* Key Journey Numbers Strip */}
-        <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-4 border-t border-slate-200 dark:border-slate-800 pt-5">
-          <div>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Current Streak</p>
-            <p className="mt-1 flex items-center gap-1.5 font-mono text-xl font-bold tabular-nums text-slate-900 dark:text-slate-100">
-              <Flame className="h-5 w-5 text-amber-500" />
+        <div className="mt-5 grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+          <div className="rounded-2xl bg-slate-50/90 dark:bg-slate-800/45 border border-slate-200/70 dark:border-slate-800 p-3.5">
+            <p className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400">
+              Current Streak
+            </p>
+            <p className="mt-1 flex items-center gap-1.5 font-mono text-lg sm:text-xl font-bold tabular-nums text-slate-900 dark:text-slate-100">
+              <Flame className="h-4 w-4 sm:h-5 sm:w-5 text-amber-500 shrink-0" />
               {metrics.streakDays} {metrics.streakDays === 1 ? 'day' : 'days'}
             </p>
           </div>
-          <div>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Speaking Invested</p>
-            <p className="mt-1 font-mono text-xl font-bold tabular-nums text-teal-700 dark:text-teal-400">
+          <div className="rounded-2xl bg-slate-50/90 dark:bg-slate-800/45 border border-slate-200/70 dark:border-slate-800 p-3.5">
+            <p className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400">
+              Speaking Invested
+            </p>
+            <p className="mt-1 font-mono text-lg sm:text-xl font-bold tabular-nums text-teal-700 dark:text-teal-400">
               {formatHoursMinutes(metrics.speakingSeconds)}
             </p>
           </div>
-          <div>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Roadmap Mastery</p>
-            <p className="mt-1 font-mono text-xl font-bold tabular-nums text-slate-900 dark:text-slate-100">
-              {masteredCount} / {totalTopicsCount} lessons
+          <div className="rounded-2xl bg-slate-50/90 dark:bg-slate-800/45 border border-slate-200/70 dark:border-slate-800 p-3.5">
+            <p className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400">
+              Roadmap Mastery
+            </p>
+            <p className="mt-1 font-mono text-lg sm:text-xl font-bold tabular-nums text-slate-900 dark:text-slate-100">
+              {masteredCount} / {totalTopicsCount}
             </p>
           </div>
-          <div>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Milestones Unlocked</p>
-            <p className="mt-1 font-mono text-xl font-bold tabular-nums text-slate-900 dark:text-slate-100">
+          <div className="rounded-2xl bg-slate-50/90 dark:bg-slate-800/45 border border-slate-200/70 dark:border-slate-800 p-3.5">
+            <p className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400">
+              Milestones
+            </p>
+            <p className="mt-1 font-mono text-lg sm:text-xl font-bold tabular-nums text-slate-900 dark:text-slate-100">
               {unlockedCount} / {achievements.length}
             </p>
           </div>
@@ -184,20 +194,20 @@ export const DashboardJourneyView: React.FC<DashboardJourneyViewProps> = ({
       </section>
 
       {/* Daily, Weekly, Monthly Goal Rings */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <section className="grid grid-cols-3 gap-2.5 sm:gap-4">
         <ProgressRing
           percent={metrics.dailyPercent}
-          label="Daily Goal"
+          label="Daily"
           subtext={`${formatHoursMinutes(metrics.todaySeconds)} / ${formatHoursMinutes(state.goals.dailyMinutes * 60)}`}
         />
         <ProgressRing
           percent={metrics.weeklyPercent}
-          label="Weekly Goal"
+          label="Weekly"
           subtext={`${formatHoursMinutes(metrics.weekSeconds)} / ${formatHoursMinutes(state.goals.weeklyMinutes * 60)}`}
         />
         <ProgressRing
           percent={metrics.monthlyPercent}
-          label="Monthly Goal"
+          label="Monthly"
           subtext={`${formatHoursMinutes(metrics.monthSeconds)} / ${formatHoursMinutes(state.goals.monthlyMinutes * 60)}`}
         />
       </section>
@@ -258,20 +268,24 @@ export const DashboardJourneyView: React.FC<DashboardJourneyViewProps> = ({
               <button
                 key={card.section}
                 onClick={() => onNavigate(card.section)}
-                className="text-left rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 hover:border-teal-500/40 p-3.5 space-y-1.5 transition"
+                className="text-left rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-800/45 hover:border-teal-500/40 active:scale-[0.98] p-3.5 space-y-2 transition"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <Icon className={`h-4 w-4 ${card.tone}`} />
+                  <div className="h-8 w-8 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-700/70 flex items-center justify-center shadow-2xs">
+                    <Icon className={`h-4 w-4 ${card.tone}`} />
+                  </div>
                   <span className={`font-mono text-lg font-bold tabular-nums ${card.tone}`}>
                     {card.count}
                   </span>
                 </div>
-                <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">
-                  {card.label}
-                </p>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                  {card.sub}
-                </p>
+                <div>
+                  <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">
+                    {card.label}
+                  </p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                    {card.sub}
+                  </p>
+                </div>
               </button>
             );
           })}

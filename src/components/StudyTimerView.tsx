@@ -245,7 +245,13 @@ export const StudyTimerView: React.FC<StudyTimerViewProps> = ({
       </div>
 
       {/* Main Stopwatch Card */}
-      <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-8">
+      <section
+        className={`rounded-3xl sm:rounded-2xl border p-5 sm:p-8 transition ${
+          timer.status === 'running'
+            ? 'border-teal-500/45 bg-gradient-to-b from-teal-500/[0.06] via-white to-white dark:from-teal-500/[0.08] dark:via-slate-900 dark:to-slate-900 shadow-sm shadow-teal-500/10'
+            : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
+        }`}
+      >
         <div className="flex flex-col items-center text-center space-y-5">
           <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
             <span className="font-semibold text-teal-700 dark:text-teal-400">
@@ -275,16 +281,16 @@ export const StudyTimerView: React.FC<StudyTimerViewProps> = ({
             )}
           </div>
 
-          <div className="font-mono text-5xl sm:text-6xl font-bold tracking-tight tabular-nums text-slate-900 dark:text-slate-50">
+          <div className="font-mono text-5xl sm:text-6xl font-bold tracking-tight tabular-nums text-slate-900 dark:text-slate-50 py-1">
             {formatHMS(elapsedSeconds)}
           </div>
 
-          {/* Primary Controls (48px+ touch hitboxes) */}
-          <div className="flex flex-wrap items-center justify-center gap-3 w-full max-w-md">
+          {/* Primary Controls (54px thumb targets) */}
+          <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-center gap-2.5 sm:gap-3 w-full max-w-md">
             {timer.status === 'idle' && (
               <button
                 onClick={onStart}
-                className="flex-1 min-w-[160px] min-h-[52px] inline-flex items-center justify-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-[0.98] px-6 text-base font-semibold text-white transition"
+                className="w-full sm:w-auto sm:flex-1 min-h-[54px] inline-flex items-center justify-center gap-2 rounded-2xl sm:rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-[0.98] px-6 text-base font-semibold text-white shadow-sm shadow-teal-600/20 transition"
               >
                 <Play className="h-5 w-5" />
                 Start Session
@@ -294,7 +300,7 @@ export const StudyTimerView: React.FC<StudyTimerViewProps> = ({
             {timer.status === 'running' && (
               <button
                 onClick={onPause}
-                className="flex-1 min-w-[140px] min-h-[52px] inline-flex items-center justify-center gap-2 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-[0.98] px-5 text-base font-semibold text-white transition"
+                className="w-full sm:w-auto sm:flex-1 min-h-[54px] inline-flex items-center justify-center gap-2 rounded-2xl sm:rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-[0.98] px-5 text-base font-semibold text-white shadow-sm shadow-amber-600/20 transition"
               >
                 <Pause className="h-5 w-5" />
                 Pause
@@ -304,7 +310,7 @@ export const StudyTimerView: React.FC<StudyTimerViewProps> = ({
             {timer.status === 'paused' && (
               <button
                 onClick={onResume}
-                className="flex-1 min-w-[140px] min-h-[52px] inline-flex items-center justify-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-[0.98] px-5 text-base font-semibold text-white transition"
+                className="w-full sm:w-auto sm:flex-1 min-h-[54px] inline-flex items-center justify-center gap-2 rounded-2xl sm:rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-[0.98] px-5 text-base font-semibold text-white shadow-sm shadow-teal-600/20 transition"
               >
                 <Play className="h-5 w-5" />
                 Resume
@@ -312,35 +318,36 @@ export const StudyTimerView: React.FC<StudyTimerViewProps> = ({
             )}
 
             {timer.status !== 'idle' && (
-              <>
+              <div className="flex items-center gap-2 w-full sm:w-auto sm:flex-1">
                 <button
                   onClick={onStopAndSave}
-                  className="flex-1 min-w-[140px] min-h-[52px] inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:opacity-90 active:scale-[0.98] px-5 text-base font-semibold transition"
+                  className="flex-1 min-h-[50px] inline-flex items-center justify-center gap-2 rounded-2xl sm:rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:opacity-90 active:scale-[0.98] px-4 text-sm sm:text-base font-semibold transition"
                 >
-                  <Save className="h-5 w-5" />
+                  <Save className="h-4 w-4 sm:h-5 sm:w-5" />
                   Stop & Save
                 </button>
                 <button
                   onClick={openEditTimeModal}
-                  className="min-h-[48px] inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 px-4 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  className="min-h-[50px] inline-flex items-center justify-center gap-1.5 rounded-2xl sm:rounded-xl border border-slate-300 dark:border-slate-700 px-3.5 text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-[0.98]"
                 >
                   <Edit3 className="h-4 w-4" />
-                  Edit Time
+                  Edit
                 </button>
                 <button
                   onClick={onDiscard}
                   title="Reset / Discard"
-                  className="min-h-[48px] min-w-[48px] inline-flex items-center justify-center rounded-xl border border-slate-300 dark:border-slate-700 text-slate-500 hover:text-red-600 hover:border-red-300"
+                  aria-label="Reset or discard session"
+                  className="min-h-[50px] min-w-[50px] inline-flex items-center justify-center rounded-2xl sm:rounded-xl border border-slate-300 dark:border-slate-700 text-slate-500 hover:text-red-600 hover:border-red-300 active:scale-[0.98]"
                 >
                   <RotateCcw className="h-4 w-4" />
                 </button>
-              </>
+              </div>
             )}
           </div>
         </div>
 
         {/* Study Mode Separation + Configuration Fields */}
-        <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-800 space-y-5">
+        <div className="mt-7 sm:mt-8 pt-6 border-t border-slate-200 dark:border-slate-800 space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
@@ -352,11 +359,11 @@ export const StudyTimerView: React.FC<StudyTimerViewProps> = ({
                   : 'Skill Practice logs pure skill time independently — no Roadmap Lesson is attached.'}
               </p>
             </div>
-            <div className="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-slate-800 shrink-0">
+            <div className="w-full sm:w-auto grid grid-cols-2 sm:inline-flex p-1 rounded-2xl sm:rounded-xl bg-slate-100 dark:bg-slate-800 shrink-0">
               <button
                 type="button"
                 onClick={() => switchStudyMode('skill')}
-                className={`min-h-[38px] px-4 rounded-lg text-xs font-semibold transition ${
+                className={`min-h-[42px] sm:min-h-[38px] px-4 rounded-xl sm:rounded-lg text-xs font-semibold transition ${
                   !isLessonMode
                     ? 'bg-teal-600 text-white shadow-sm'
                     : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
@@ -367,7 +374,7 @@ export const StudyTimerView: React.FC<StudyTimerViewProps> = ({
               <button
                 type="button"
                 onClick={() => switchStudyMode('lesson')}
-                className={`min-h-[38px] px-4 rounded-lg text-xs font-semibold transition ${
+                className={`min-h-[42px] sm:min-h-[38px] px-4 rounded-xl sm:rounded-lg text-xs font-semibold transition ${
                   isLessonMode
                     ? 'bg-teal-600 text-white shadow-sm'
                     : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'

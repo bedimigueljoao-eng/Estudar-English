@@ -495,7 +495,8 @@ export const PhraseBankView: React.FC<PhraseBankProps> = ({
 
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
-          <div className="w-full max-w-lg rounded-t-3xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 space-y-4">
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 pb-safe space-y-4">
+            <div className="sm:hidden w-10 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 mx-auto -mt-1 mb-2" />
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-slate-900 dark:text-slate-50">
                 Save New English Phrase
@@ -881,12 +882,12 @@ export const QuestionBankView: React.FC<QuestionBankProps> = ({
           ))}
         </select>
 
-        <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-200/70 dark:bg-slate-800/80">
+        <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-200/70 dark:bg-slate-800/80 overflow-x-auto no-scrollbar max-w-full">
           {(['all', 'Easy', 'Medium', 'Hard'] as const).map((d) => (
             <button
               key={d}
               onClick={() => setDiffFilter(d)}
-              className={`min-h-[36px] px-3 rounded-lg text-xs font-medium transition ${
+              className={`min-h-[36px] px-3 rounded-lg text-xs font-medium whitespace-nowrap transition ${
                 diffFilter === d
                   ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-50 shadow-sm'
                   : 'text-slate-600 dark:text-slate-400'
@@ -1028,7 +1029,8 @@ export const QuestionBankView: React.FC<QuestionBankProps> = ({
 
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
-          <div className="w-full max-w-lg rounded-t-3xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 space-y-4">
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 pb-safe space-y-4">
+            <div className="sm:hidden w-10 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 mx-auto -mt-1 mb-2" />
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-slate-900 dark:text-slate-50">
                 Add Speaking Question
@@ -1268,7 +1270,8 @@ export const MoviesSeriesView: React.FC<MoviesSeriesProps> = ({
 
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
-          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 space-y-4">
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 pb-safe space-y-4">
+            <div className="sm:hidden w-10 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 mx-auto -mt-1 mb-2" />
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-slate-900 dark:text-slate-50">
                 Log Immersion Media

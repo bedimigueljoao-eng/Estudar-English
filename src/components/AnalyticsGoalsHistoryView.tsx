@@ -560,7 +560,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
       </div>
 
       {/* Period Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {[
           { label: 'Today', data: todaySummary },
           { label: 'This Week', data: weekSummary },
@@ -569,21 +569,21 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
         ].map((block) => (
           <div
             key={block.label}
-            className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-2"
+            className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 sm:p-4 space-y-2"
           >
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-1">
               <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                 {block.label}
               </span>
-              <span className="font-mono text-base font-bold tabular-nums text-slate-900 dark:text-slate-50">
+              <span className="font-mono text-sm sm:text-base font-bold tabular-nums text-slate-900 dark:text-slate-50">
                 {formatHoursMinutes(block.data.total)}
               </span>
             </div>
             <div className="space-y-1 text-xs text-slate-600 dark:text-slate-400">
               {block.data.items.slice(0, 3).map(([sk, sec]) => (
-                <div key={sk} className="flex justify-between">
-                  <span>{sk}</span>
-                  <span className="font-mono tabular-nums">{formatHoursMinutes(sec)}</span>
+                <div key={sk} className="flex justify-between gap-1">
+                  <span className="truncate">{sk}</span>
+                  <span className="font-mono tabular-nums shrink-0">{formatHoursMinutes(sec)}</span>
                 </div>
               ))}
               {block.data.items.length === 0 && <span>No entries yet</span>}
@@ -593,8 +593,8 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
       </div>
 
       {/* Filter: All vs Skill Practice vs Lesson Study */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="inline-flex p-1 rounded-xl bg-slate-200/70 dark:bg-slate-800/80">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="inline-flex p-1 rounded-xl bg-slate-200/70 dark:bg-slate-800/80 overflow-x-auto no-scrollbar max-w-full">
           {(
             [
               ['all', 'All Sessions'],
@@ -605,7 +605,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
             <button
               key={val}
               onClick={() => setHistoryFilter(val)}
-              className={`min-h-[36px] px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+              className={`min-h-[36px] px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition ${
                 historyFilter === val
                   ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-50 shadow-sm'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
@@ -699,7 +699,8 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
       {/* Manual Time Entry Modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
-          <div className="w-full max-w-lg rounded-t-3xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 space-y-4">
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 pb-safe space-y-4">
+            <div className="sm:hidden w-10 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 mx-auto -mt-1 mb-2" />
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-slate-900 dark:text-slate-50">
                 Manual Study Time Entry

@@ -6,7 +6,6 @@ import {
   Download,
   Moon,
   RotateCcw,
-  Smartphone,
   Sun,
   Upload,
 } from 'lucide-react';
@@ -184,10 +183,14 @@ export const SettingsBackupView: React.FC<SettingsBackupViewProps> = ({
 
         {/* PWA Install Widget */}
         {!isInstalled && (isInstallable || isIOS) && (
-          <div className="flex items-center justify-between rounded-xl border border-teal-600/30 bg-teal-600/5 p-4">
-            <div className="flex items-center gap-3">
-              <Smartphone className="h-5 w-5 text-teal-600 dark:text-teal-400" />
-              <div>
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-teal-600/30 bg-teal-600/5 p-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <img
+                src="/pwa-192x192.png"
+                alt="FOCOENGLISH icon"
+                className="h-11 w-11 rounded-xl object-cover shrink-0 shadow-sm"
+              />
+              <div className="min-w-0">
                 <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                   Install FOCOENGLISH Offline App
                 </p>
@@ -199,14 +202,14 @@ export const SettingsBackupView: React.FC<SettingsBackupViewProps> = ({
             {isInstallable ? (
               <button
                 onClick={install}
-                className="min-h-[42px] px-4 rounded-xl bg-teal-600 text-xs font-semibold text-white"
+                className="min-h-[42px] px-4 rounded-xl bg-teal-600 text-xs font-semibold text-white shrink-0 whitespace-nowrap"
               >
                 Install App
               </button>
             ) : (
               <button
                 onClick={() => setShowIOSGuide(true)}
-                className="min-h-[42px] px-4 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold"
+                className="min-h-[42px] px-4 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold shrink-0 whitespace-nowrap"
               >
                 Install on iOS
               </button>

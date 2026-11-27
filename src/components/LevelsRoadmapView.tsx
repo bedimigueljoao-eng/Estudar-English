@@ -283,16 +283,16 @@ export const LevelsRoadmapView: React.FC<LevelsRoadmapViewProps> = ({
       </div>
 
       {/* Level Selector Strip */}
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2.5 sm:gap-2">
         {levelStats.map((item) => {
           const active = item.level === selectedLevel;
           return (
             <button
               key={item.level}
               onClick={() => setSelectedLevel(item.level)}
-              className={`min-h-[58px] rounded-xl border p-2.5 text-left transition ${
+              className={`min-h-[62px] rounded-2xl sm:rounded-xl border p-3 sm:p-2.5 text-left active:scale-[0.98] transition ${
                 active
-                  ? 'border-teal-600 bg-teal-600/10 dark:bg-teal-500/15 text-slate-900 dark:text-slate-50'
+                  ? 'border-teal-600 bg-teal-600/10 dark:bg-teal-500/15 text-slate-900 dark:text-slate-50 shadow-2xs'
                   : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700'
               }`}
             >
@@ -341,7 +341,7 @@ export const LevelsRoadmapView: React.FC<LevelsRoadmapViewProps> = ({
             className="w-full min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 pl-10 pr-4 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
         </div>
-        <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-200/70 dark:bg-slate-800/80 overflow-x-auto">
+        <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-200/70 dark:bg-slate-800/80 overflow-x-auto no-scrollbar">
           {(
             [
               ['all', 'All'],
@@ -416,13 +416,13 @@ export const LevelsRoadmapView: React.FC<LevelsRoadmapViewProps> = ({
 
             return (
               <div key={topic.id} className={`p-4 sm:p-5 transition-colors ${statusMeta.rowTintClass}`}>
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start justify-between gap-2.5 sm:gap-3">
                   {/* Visual Status Signal Trigger ("Sinaleta") */}
                   <button
                     onClick={() => cycleTopicStatus(topic)}
                     title={`Status: ${statusMeta.label} — Tap to change status`}
                     aria-label={`Change status from ${statusMeta.label}`}
-                    className={`mt-0.5 min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-600 shrink-0 transition ${statusMeta.signalClass}`}
+                    className={`mt-0.5 min-h-[42px] min-w-[42px] flex items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-600 active:scale-[0.95] shrink-0 transition ${statusMeta.signalClass}`}
                   >
                     <StatusIcon className="h-5 w-5" />
                   </button>
@@ -450,7 +450,7 @@ export const LevelsRoadmapView: React.FC<LevelsRoadmapViewProps> = ({
                         </>
                       )}
                     </div>
-                    <h3 className="mt-1 text-base font-semibold text-slate-900 dark:text-slate-100">
+                    <h3 className="mt-1 text-base font-semibold text-slate-900 dark:text-slate-100 leading-snug">
                       {topic.title}
                     </h3>
                     <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 line-clamp-2">
@@ -458,45 +458,47 @@ export const LevelsRoadmapView: React.FC<LevelsRoadmapViewProps> = ({
                     </p>
                   </button>
 
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex flex-col sm:flex-row items-center gap-1 shrink-0">
                     <button
                       onClick={() => onStartTimerForTopic(topic)}
                       title="Start Lesson Study timer (skill link optional)"
-                      className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg bg-teal-600/10 hover:bg-teal-600/20 text-teal-700 dark:text-teal-400 transition"
+                      className="min-h-[42px] min-w-[42px] flex items-center justify-center rounded-xl bg-teal-600/10 hover:bg-teal-600/20 active:scale-[0.96] text-teal-700 dark:text-teal-400 transition"
                     >
                       <Play className="h-4 w-4" />
                     </button>
-                    {confirmDeleteId === topic.id ? (
-                      <button
-                        onClick={() => {
-                          onDeleteTopic(topic.id);
-                          setConfirmDeleteId(null);
-                        }}
-                        className="min-h-[38px] px-2.5 rounded-lg bg-red-600 text-xs font-semibold text-white whitespace-nowrap"
-                      >
-                        Confirm
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => setConfirmDeleteId(topic.id)}
-                        title="Remove lesson from module"
-                        aria-label="Remove lesson"
-                        className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
-                    <button
-                      onClick={() => setExpandedId(isExpanded ? null : topic.id)}
-                      aria-label={isExpanded ? 'Collapse lesson' : 'Expand lesson'}
-                      className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-                    >
-                      {isExpanded ? (
-                        <ChevronUp className="h-4 w-4" />
+                    <div className="flex items-center gap-0.5">
+                      {confirmDeleteId === topic.id ? (
+                        <button
+                          onClick={() => {
+                            onDeleteTopic(topic.id);
+                            setConfirmDeleteId(null);
+                          }}
+                          className="min-h-[40px] px-2.5 rounded-xl bg-red-600 text-xs font-semibold text-white whitespace-nowrap"
+                        >
+                          Confirm
+                        </button>
                       ) : (
-                        <ChevronDown className="h-4 w-4" />
+                        <button
+                          onClick={() => setConfirmDeleteId(topic.id)}
+                          title="Remove lesson from module"
+                          aria-label="Remove lesson"
+                          className="min-h-[42px] min-w-[38px] hidden sm:flex items-center justify-center rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       )}
-                    </button>
+                      <button
+                        onClick={() => setExpandedId(isExpanded ? null : topic.id)}
+                        aria-label={isExpanded ? 'Collapse lesson' : 'Expand lesson'}
+                        className="min-h-[42px] min-w-[42px] flex items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                      >
+                        {isExpanded ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -618,24 +620,44 @@ export const LevelsRoadmapView: React.FC<LevelsRoadmapViewProps> = ({
                         <button
                           onClick={() => onReorderTopic(topic.id, 'up')}
                           title="Move lesson up"
-                          className="min-h-[38px] min-w-[38px] flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                          className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                         >
                           <ArrowUp className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => onReorderTopic(topic.id, 'down')}
                           title="Move lesson down"
-                          className="min-h-[38px] min-w-[38px] flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                          className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                         >
                           <ArrowDown className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => openEditModal(topic)}
                           title="Edit lesson"
-                          className="min-h-[38px] min-w-[38px] flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                          className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                         >
                           <Edit3 className="h-4 w-4" />
                         </button>
+                        {confirmDeleteId === topic.id ? (
+                          <button
+                            onClick={() => {
+                              onDeleteTopic(topic.id);
+                              setConfirmDeleteId(null);
+                            }}
+                            className="sm:hidden min-h-[40px] px-3 rounded-xl bg-red-600 text-xs font-semibold text-white whitespace-nowrap"
+                          >
+                            Confirm
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmDeleteId(topic.id)}
+                            title="Remove lesson from module"
+                            aria-label="Remove lesson"
+                            className="sm:hidden min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-red-500"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -649,7 +671,8 @@ export const LevelsRoadmapView: React.FC<LevelsRoadmapViewProps> = ({
       {/* Add / Edit Topic Modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
-          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 space-y-4">
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 pb-safe space-y-4">
+            <div className="sm:hidden w-10 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 mx-auto -mt-1 mb-2" />
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-slate-900 dark:text-slate-50">
                 {editingTopic ? 'Edit Module Lesson' : `Add Lesson to ${formLevel} Module`}
