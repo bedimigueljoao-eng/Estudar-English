@@ -238,12 +238,94 @@ export function playDialogueTurns(
       pauseTimerId = window.setTimeout(() => speakAt(idx + 1), 320);
     };
     utter.onerror = () => {
-      if (token !== activePlaybackToken) return;
-      options.onTurnChange?.(null);
-      options.onComplete?.();
+      if (token === activePlaybackToken) {
+        options.onTurnChange?.(null);
+        options.onComplete?.();
+      }
     };
     window.speechSynthesis.speak(utter);
   };
 
   speakAt(0);
+}
+
+/**
+ * Plays a sentence `repeats` times (default 3) with a mimicry pause gap
+ * after each spoken repetition so the learner can shadow aloud immediately.
+ */
+export function playShadowingLoop(
+  text: string,
+  options?: {
+    repeats?: number;
+    preferredVoiceURI?: string;
+    rate?: number;
+    onIterationChange?: (iteration: number | null, total: number) => void;
+    onComplete?: () => void;
+  }
+): void {
+  const clean = text.trim();
+  const total = options?.repeats ?? 3;
+  if (!clean) {
+    options?.onComplete?.();
+    return;
+  }
+
+  stopAllSpeech();
+  const token = activePlaybackToken;
+  const rate = options?.rate ?? loadVoicePrefs().rate;
+  const voiceURI = options?.preferredVoiceURI ?? loadVoicePrefs().preferredVoiceURI;
+  const synth = typeof window !== 'undefined' ? window.speechSynthesis : undefined;
+  const bridge = typeof window !== 'undefined' ? window.FocoAndroidBridge : undefined;
+
+  const pauseGapMs = Math.min(4500, Math.max(1800, Math.round(clean.length * 65 / Math.max(0.6, rate))));
+
+  const step = (iter: number) => {
+    if (token !== activePlaybackToken) return;
+    if (iter > total) {
+      options?.onIterationChange?.(null, total);
+      options?.onComplete?.();
+      return;
+    }
+
+    options?.onIterationChange?.(iter, total);
+
+    if (synth && (getRankedEnglishVoices().length > 0 || !bridge?.speakText)) {
+      const { primary } = pickBestVoices(voiceURI);
+      const utter = new SpeechSynthesisUtterance(clean);
+      if (primary) {
+        utter.voice = primary;
+        utter.lang = primary.lang;
+      } else {
+        utter.lang = 'en-US';
+      }
+      utter.rate = rate;
+      utter.onend = () => {
+        if (token !== activePlaybackToken) return;
+        pauseTimerId = window.setTimeout(() => step(iter + 1), pauseGapMs);
+      };
+      utter.onerror = () => {
+        if (token === activePlaybackToken) {
+          options?.onIterationChange?.(null, total);
+          options?.onComplete?.();
+        }
+      };
+      synth.speak(utter);
+      return;
+    }
+
+    if (bridge?.speakText) {
+      try {
+        bridge.speakText(clean, rate);
+      } catch {
+        // ignore
+      }
+      pauseTimerId = window.setTimeout(() => step(iter + 1), pauseGapMs + 1500);
+      return;
+    }
+
+    options?.onIterationChange?.(null, total);
+    options?.onComplete?.();
+  };
+
+  step(1);
 }

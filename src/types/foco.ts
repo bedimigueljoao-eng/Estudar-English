@@ -128,7 +128,17 @@ export interface MediaEntry {
   createdAt: number;
 }
 
-export interface PhraseEntry {
+export type SRSRating = 'again' | 'hard' | 'good' | 'easy';
+
+export interface SRSFields {
+  srsIntervalDays?: number;
+  srsEase?: number;
+  srsReps?: number;
+  srsNextReviewDate?: string; // YYYY-MM-DD
+  srsLastRating?: SRSRating;
+}
+
+export interface PhraseEntry extends SRSFields {
   id: string;
   englishSentence: string;
   translation: string;
@@ -142,7 +152,7 @@ export interface PhraseEntry {
 
 export type QuestionDifficulty = 'Easy' | 'Medium' | 'Hard';
 
-export interface QuestionEntry {
+export interface QuestionEntry extends SRSFields {
   id: string;
   question: string;
   suggestedAnswer: string;
@@ -163,7 +173,7 @@ export interface AchievementDefinition {
   targetValue: number;
 }
 
-export interface DialogueEntry {
+export interface DialogueEntry extends SRSFields {
   id: string;
   title: string;
   level: CEFRLevel;
@@ -175,6 +185,25 @@ export interface DialogueEntry {
   isFavourite: boolean;
   practicedCount: number;
   lastPracticedAt?: number;
+  createdAt: number;
+}
+
+export type MistakeCategory =
+  | 'Grammar'
+  | 'Prepositions'
+  | 'Vocabulary'
+  | 'Pronunciation'
+  | 'Natural Phrasing';
+
+export interface MistakeEntry extends SRSFields {
+  id: string;
+  whatISaid: string;
+  naturalEnglish: string;
+  ruleOrTip: string;
+  category: MistakeCategory;
+  level: CEFRLevel;
+  status: 'practicing' | 'fixed';
+  practicedCount: number;
   createdAt: number;
 }
 
@@ -196,6 +225,7 @@ export interface AppState {
   phrases: PhraseEntry[];
   questions: QuestionEntry[];
   dialogues: DialogueEntry[];
+  mistakes: MistakeEntry[];
   settings: AppSettings;
   activeTimer: ActiveTimerState;
   lastUpdatedAt: number;
@@ -210,6 +240,7 @@ export type AppSection =
   | 'dialogues'
   | 'phrases'
   | 'questions'
+  | 'mistakes'
   | 'movies'
   | 'statistics'
   | 'goals'

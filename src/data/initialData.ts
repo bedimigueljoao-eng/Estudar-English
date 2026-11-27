@@ -3,6 +3,7 @@ import type {
   AppState,
   DialogueEntry,
   MediaEntry,
+  MistakeEntry,
   PhraseEntry,
   QuestionEntry,
   StudyResource,
@@ -530,6 +531,42 @@ const STARTER_DIALOGUES: DialogueEntry[] = [
   },
 ];
 
+const STARTER_MISTAKES: MistakeEntry[] = [
+  {
+    id: 'err-1',
+    whatISaid: 'I have 25 years and I work with IT.',
+    naturalEnglish: "I'm 25 years old, and I work in IT.",
+    ruleOrTip: 'Use "to be" for age ("I am 25") and "work in + field" instead of "work with".',
+    category: 'Grammar',
+    level: 'A1',
+    status: 'practicing',
+    practicedCount: 1,
+    createdAt: Date.now() - 86400000 * 3,
+  },
+  {
+    id: 'err-2',
+    whatISaid: 'It depends of the weather tomorrow.',
+    naturalEnglish: 'It depends on the weather tomorrow.',
+    ruleOrTip: '"Depend" is always followed by the preposition "on", never "of".',
+    category: 'Prepositions',
+    level: 'A2',
+    status: 'practicing',
+    practicedCount: 0,
+    createdAt: Date.now() - 86400000 * 2,
+  },
+  {
+    id: 'err-3',
+    whatISaid: 'I want to economize time on my commute.',
+    naturalEnglish: 'I want to save time on my commute.',
+    ruleOrTip: 'Natural collocation in English is "save time / save money", not "economize".',
+    category: 'Natural Phrasing',
+    level: 'B1',
+    status: 'practicing',
+    practicedCount: 2,
+    createdAt: Date.now() - 86400000,
+  },
+];
+
 export function createInitialAppState(): AppState {
   return {
     version: 2,
@@ -548,6 +585,7 @@ export function createInitialAppState(): AppState {
     phrases: STARTER_PHRASES,
     questions: STARTER_QUESTIONS,
     dialogues: STARTER_DIALOGUES,
+    mistakes: STARTER_MISTAKES,
     settings: {
       theme: 'dark',
       notificationsEnabled: true,

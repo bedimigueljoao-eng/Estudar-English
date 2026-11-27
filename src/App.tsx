@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  AlertCircle,
   BarChart3,
   BookOpen,
   CalendarClock,
@@ -26,6 +27,7 @@ import {
 import { DashboardJourneyView } from './components/DashboardJourneyView';
 import { DialoguesView } from './components/DialoguesView';
 import { LevelsRoadmapView } from './components/LevelsRoadmapView';
+import { MistakesView } from './components/MistakesView';
 import {
   MoviesSeriesView,
   PhraseBankView,
@@ -81,6 +83,7 @@ const NAV_GROUPS: Array<{
       { id: 'dialogues', label: 'Dialogues', icon: MessagesSquare },
       { id: 'phrases', label: 'Phrase Bank', icon: BookOpen },
       { id: 'questions', label: 'Question Bank', icon: MessageSquare },
+      { id: 'mistakes', label: 'Error Log', icon: AlertCircle },
       { id: 'movies', label: 'Movies & Series', icon: Film },
     ],
   },
@@ -95,7 +98,14 @@ const NAV_GROUPS: Array<{
   },
 ];
 
-const PRACTICE_SECTIONS: AppSection[] = ['resources', 'dialogues', 'phrases', 'questions', 'movies'];
+const PRACTICE_SECTIONS: AppSection[] = [
+  'resources',
+  'dialogues',
+  'phrases',
+  'questions',
+  'mistakes',
+  'movies',
+];
 const INSIGHTS_SECTIONS: AppSection[] = ['statistics', 'goals', 'history', 'settings'];
 
 export default function App() {
@@ -579,6 +589,7 @@ export default function App() {
                 ['dialogues', 'Dialogues'],
                 ['phrases', 'Phrase Bank'],
                 ['questions', 'Question Bank'],
+                ['mistakes', 'Error Log'],
                 ['movies', 'Movies & Series'],
               ] as const
             ).map(([id, lbl]) => (
@@ -685,6 +696,8 @@ export default function App() {
             <StudyTimerView
               timer={state.activeTimer}
               topics={state.topics}
+              phrases={state.phrases}
+              questions={state.questions}
               notificationsEnabled={state.settings.notificationsEnabled}
               onUpdateTimerConfig={(patch) =>
                 updateState((prev) => {
@@ -776,6 +789,12 @@ export default function App() {
                   phrases: [p, ...prev.phrases],
                 }))
               }
+              onUpdatePhrase={(updated) =>
+                updateState((prev) => ({
+                  ...prev,
+                  phrases: prev.phrases.map((p) => (p.id === updated.id ? updated : p)),
+                }))
+              }
               onToggleFav={(id) =>
                 updateState((prev) => ({
                   ...prev,
@@ -803,6 +822,12 @@ export default function App() {
                   questions: [q, ...prev.questions],
                 }))
               }
+              onUpdateQuestion={(updated) =>
+                updateState((prev) => ({
+                  ...prev,
+                  questions: prev.questions.map((q) => (q.id === updated.id ? updated : q)),
+                }))
+              }
               onMarkPracticed={(id) =>
                 updateState((prev) => ({
                   ...prev,
@@ -817,6 +842,32 @@ export default function App() {
                 updateState((prev) => ({
                   ...prev,
                   questions: prev.questions.filter((q) => q.id !== id),
+                }))
+              }
+            />
+          )}
+
+          {section === 'mistakes' && (
+            <MistakesView
+              mistakes={state.mistakes ?? []}
+              onAddMistake={(m) =>
+                updateState((prev) => ({
+                  ...prev,
+                  mistakes: [m, ...(prev.mistakes ?? [])],
+                }))
+              }
+              onUpdateMistake={(updated) =>
+                updateState((prev) => ({
+                  ...prev,
+                  mistakes: (prev.mistakes ?? []).map((m) =>
+                    m.id === updated.id ? updated : m
+                  ),
+                }))
+              }
+              onDeleteMistake={(id) =>
+                updateState((prev) => ({
+                  ...prev,
+                  mistakes: (prev.mistakes ?? []).filter((m) => m.id !== id),
                 }))
               }
             />

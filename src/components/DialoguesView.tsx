@@ -1,11 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  ArrowRight,
   CheckCircle2,
   Edit3,
   Eye,
   EyeOff,
   MessagesSquare,
+  Play,
   Plus,
+  Repeat,
   Search,
   Square,
   Star,
@@ -18,12 +21,14 @@ import {
   isSpeechAvailable,
   loadVoicePrefs,
   playDialogueTurns,
+  playShadowingLoop,
   saveVoicePrefs,
   speakEnglishText,
   stopAllSpeech,
 } from '../services/speechVoice';
 import { ALL_LEVELS } from '../services/timerBridge';
 import type { CEFRLevel, DialogueEntry, RoadmapTopic } from '../types/foco';
+import { computeNextSrsSchedule, isSrsDueToday } from '../utils/srs';
 
 interface DialoguesViewProps {
   dialogues: DialogueEntry[];
@@ -65,6 +70,15 @@ export const DialoguesView: React.FC<DialoguesViewProps> = ({
   const [activeTurnIdx, setActiveTurnIdx] = useState<number | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
+  // Interactive Turn-by-Turn Roleplay Mode
+  const [roleplayId, setRoleplayId] = useState<string | null>(null);
+  const [roleplayIdx, setRoleplayIdx] = useState(0);
+  const [roleplaySelfRevealed, setRoleplaySelfRevealed] = useState(false);
+
+  // Shadow 3x per turn line
+  const [shadowKey, setShadowKey] = useState<string | null>(null);
+  const [shadowProgress, setShadowProgress] = useState<string | null>(null);
+
   // Voice & Speed controls
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [voicePrefs, setVoicePrefs] = useState(() => loadVoicePrefs());
@@ -82,10 +96,11 @@ export const DialoguesView: React.FC<DialoguesViewProps> = ({
   useEffect(() => {
     const refreshVoices = () => setVoices(getRankedEnglishVoices());
     refreshVoices();
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.addEventListener('voiceschanged', refreshVoices);
+    const synth = typeof window !== 'undefined' ? window.speechSynthesis : undefined;
+    if (synth) {
+      synth.addEventListener('voiceschanged', refreshVoices);
       return () => {
-        window.speechSynthesis.removeEventListener('voiceschanged', refreshVoices);
+        synth.removeEventListener('voiceschanged', refreshVoices);
         stopAllSpeech();
       };
     }
@@ -175,6 +190,9 @@ export const DialoguesView: React.FC<DialoguesViewProps> = ({
   };
 
   const handlePlayDialogue = (d: DialogueEntry) => {
+    setShadowKey(null);
+    setShadowProgress(null);
+    setRoleplayId(null);
     if (speakingId === d.id) {
       stopAllSpeech();
       setSpeakingId(null);
@@ -208,6 +226,97 @@ export const DialoguesView: React.FC<DialoguesViewProps> = ({
   };
 
   const canSpeak = isSpeechAvailable();
+
+  const parseDialogueLines = (script: string) =>
+    script
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const { speaker, text } = parseTurn(line);
+        const isSelf =
+          speaker !== null &&
+          ['you', 'eu', 'me', 'student', 'learner'].includes(speaker.toLowerCase());
+        return { speaker, text, isSelf };
+      });
+
+  const startRoleplay = (d: DialogueEntry) => {
+    stopAllSpeech();
+    setSpeakingId(null);
+    setActiveTurnIdx(null);
+    setShadowKey(null);
+    setShadowProgress(null);
+
+    if (roleplayId === d.id) {
+      setRoleplayId(null);
+      return;
+    }
+
+    const turns = parseDialogueLines(d.script);
+    if (turns.length === 0) return;
+
+    setExpandedId(d.id);
+    setRoleplayId(d.id);
+    setRoleplayIdx(0);
+    setRoleplaySelfRevealed(false);
+
+    if (!turns[0].isSelf && canSpeak) {
+      speakEnglishText(turns[0].text, {
+        preferredVoiceURI: voicePrefs.preferredVoiceURI,
+        rate: voicePrefs.rate,
+      });
+    }
+  };
+
+  const advanceRoleplayTurn = (d: DialogueEntry) => {
+    const turns = parseDialogueLines(d.script);
+    const nextIdx = roleplayIdx + 1;
+    if (nextIdx >= turns.length) {
+      stopAllSpeech();
+      setRoleplayId(null);
+      setRoleplayIdx(0);
+      setRoleplaySelfRevealed(false);
+      onUpdateDialogue({
+        ...d,
+        practicedCount: d.practicedCount + 1,
+        lastPracticedAt: Date.now(),
+        ...computeNextSrsSchedule(d, 'good'),
+      });
+      return;
+    }
+
+    setRoleplayIdx(nextIdx);
+    setRoleplaySelfRevealed(false);
+    const nextTurn = turns[nextIdx];
+    if (!nextTurn.isSelf && canSpeak) {
+      speakEnglishText(nextTurn.text, {
+        preferredVoiceURI: voicePrefs.preferredVoiceURI,
+        rate: voicePrefs.rate,
+      });
+    }
+  };
+
+  const handleShadowLineToggle = (key: string, text: string) => {
+    setSpeakingId(null);
+    setActiveTurnIdx(null);
+    if (shadowKey === key) {
+      stopAllSpeech();
+      setShadowKey(null);
+      setShadowProgress(null);
+      return;
+    }
+    setShadowKey(key);
+    playShadowingLoop(text, {
+      repeats: 3,
+      preferredVoiceURI: voicePrefs.preferredVoiceURI,
+      rate: voicePrefs.rate,
+      onIterationChange: (iter, total) => setShadowProgress(iter ? `${iter}/${total}` : null),
+      onComplete: () => {
+        setShadowKey(null);
+        setShadowProgress(null);
+      },
+    });
+  };
 
   return (
     <div className="space-y-5">
@@ -351,6 +460,14 @@ export const DialoguesView: React.FC<DialoguesViewProps> = ({
                       <span className="font-mono tabular-nums">
                         Practiced {d.practicedCount}×
                       </span>
+                      <span aria-hidden="true"> · </span>
+                      <span
+                        className={`font-mono ${
+                          isSrsDueToday(d) ? 'text-amber-600 dark:text-amber-400 font-semibold' : ''
+                        }`}
+                      >
+                        {isSrsDueToday(d) ? 'Due today' : `Next ${d.srsNextReviewDate}`}
+                      </span>
                     </p>
                     <h2 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                       <MessagesSquare className="h-4 w-4 shrink-0 text-teal-600 dark:text-teal-400" />
@@ -404,6 +521,18 @@ export const DialoguesView: React.FC<DialoguesViewProps> = ({
                     {/* Practice Toolbar */}
                     <div className="flex flex-wrap items-center gap-2">
                       <button
+                        onClick={() => startRoleplay(d)}
+                        className={`min-h-[40px] inline-flex items-center gap-1.5 rounded-xl px-3.5 text-xs font-semibold transition ${
+                          roleplayId === d.id
+                            ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                            : 'bg-teal-600 hover:bg-teal-700 text-white'
+                        }`}
+                      >
+                        <Play className="h-3.5 w-3.5" />
+                        {roleplayId === d.id ? 'Exit Roleplay' : 'Roleplay (Turn-by-Turn)'}
+                      </button>
+
+                      <button
                         onClick={() =>
                           setHideMyLinesMap((prev) => ({ ...prev, [d.id]: !prev[d.id] }))
                         }
@@ -418,7 +547,7 @@ export const DialoguesView: React.FC<DialoguesViewProps> = ({
                         ) : (
                           <EyeOff className="h-3.5 w-3.5" />
                         )}
-                        {hideMyLines ? 'Show My Lines' : 'Practice Mode (Hide "You:")'}
+                        {hideMyLines ? 'Show My Lines' : 'Hide "You:" Lines'}
                       </button>
 
                       {canSpeak && (
@@ -448,14 +577,120 @@ export const DialoguesView: React.FC<DialoguesViewProps> = ({
                             ...d,
                             practicedCount: d.practicedCount + 1,
                             lastPracticedAt: Date.now(),
+                            ...computeNextSrsSchedule(d, 'good'),
                           })
                         }
-                        className="min-h-[40px] inline-flex items-center gap-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 px-3.5 text-xs font-semibold text-white"
+                        className="min-h-[40px] inline-flex items-center gap-1.5 rounded-xl border border-teal-600/30 bg-teal-600/10 hover:bg-teal-600/20 px-3.5 text-xs font-semibold text-teal-700 dark:text-teal-400"
                       >
                         <CheckCircle2 className="h-3.5 w-3.5" />
                         Mark Practiced
                       </button>
                     </div>
+
+                    {/* Interactive Turn-by-Turn Roleplay Panel */}
+                    {roleplayId === d.id && (() => {
+                      const turns = parseDialogueLines(d.script);
+                      const current = turns[roleplayIdx];
+                      if (!current) return null;
+                      const isLast = roleplayIdx >= turns.length - 1;
+
+                      return (
+                        <div className="rounded-xl border border-teal-500/35 bg-teal-500/5 p-4 space-y-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs font-semibold text-teal-700 dark:text-teal-400 font-mono tabular-nums">
+                              ROLEPLAY TURN {roleplayIdx + 1} OF {turns.length} ·{' '}
+                              {current.isSelf ? 'YOUR TURN TO SPEAK' : `${current.speaker ?? 'PARTNER'} SPEAKING`}
+                            </p>
+                          </div>
+
+                          {current.isSelf ? (
+                            <div className="space-y-2">
+                              {!roleplaySelfRevealed ? (
+                                <div className="rounded-lg border border-dashed border-teal-500/40 bg-white/70 dark:bg-slate-900/70 p-3.5 space-y-2">
+                                  <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                                    Respond aloud in English before peeking at the script.
+                                  </p>
+                                  <button
+                                    onClick={() => setRoleplaySelfRevealed(true)}
+                                    className="text-xs font-semibold text-teal-700 dark:text-teal-400 underline underline-offset-2"
+                                  >
+                                    Peek at suggested line
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3.5 space-y-2">
+                                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                    {current.text}
+                                  </p>
+                                  {canSpeak && (
+                                    <button
+                                      onClick={() =>
+                                        speakEnglishText(current.text, {
+                                          preferredVoiceURI: voicePrefs.preferredVoiceURI,
+                                          rate: voicePrefs.rate,
+                                        })
+                                      }
+                                      className="min-h-[34px] inline-flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 px-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200"
+                                    >
+                                      <Volume2 className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+                                      Hear Line
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3.5 space-y-2">
+                              <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                {current.text}
+                              </p>
+                              {canSpeak && (
+                                <button
+                                  onClick={() =>
+                                    speakEnglishText(current.text, {
+                                      preferredVoiceURI: voicePrefs.preferredVoiceURI,
+                                      rate: voicePrefs.rate,
+                                    })
+                                  }
+                                  className="min-h-[34px] inline-flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 px-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200"
+                                >
+                                  <Volume2 className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+                                  Replay Partner Line
+                                </button>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <button
+                              onClick={() => {
+                                stopAllSpeech();
+                                setRoleplayId(null);
+                              }}
+                              className="min-h-[40px] px-3 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300"
+                            >
+                              Stop
+                            </button>
+                            <button
+                              onClick={() => advanceRoleplayTurn(d)}
+                              className="min-h-[42px] inline-flex items-center gap-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 px-4 text-xs font-semibold text-white"
+                            >
+                              {isLast ? (
+                                <>
+                                  <CheckCircle2 className="h-4 w-4" />
+                                  Finish Roleplay & Log Practice
+                                </>
+                              ) : (
+                                <>
+                                  <span>{current.isSelf ? 'I Spoke It · Next Turn' : 'Next Turn'}</span>
+                                  <ArrowRight className="h-4 w-4" />
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     {/* Turn-by-turn script */}
                     <div className="space-y-2.5">
@@ -468,7 +703,10 @@ export const DialoguesView: React.FC<DialoguesViewProps> = ({
                           );
                         const turnKey = `${d.id}-${idx}`;
                         const isHidden = hideMyLines && isSelf && !revealedTurns[turnKey];
-                        const isCurrentlySpoken = isPlayingThis && activeTurnIdx === idx;
+                        const isCurrentlySpoken =
+                          (isPlayingThis && activeTurnIdx === idx) ||
+                          (roleplayId === d.id && roleplayIdx === idx);
+                        const isShadowingLine = shadowKey === turnKey;
 
                         return (
                           <div
@@ -509,18 +747,42 @@ export const DialoguesView: React.FC<DialoguesViewProps> = ({
                               )}
                             </div>
                             {canSpeak && !isHidden && (
-                              <button
-                                onClick={() =>
-                                  speakEnglishText(text, {
-                                    preferredVoiceURI: voicePrefs.preferredVoiceURI,
-                                    rate: voicePrefs.rate,
-                                  })
-                                }
-                                aria-label="Listen to line"
-                                className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 shrink-0"
-                              >
-                                <Volume2 className="h-4 w-4" />
-                              </button>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  onClick={() =>
+                                    speakEnglishText(text, {
+                                      preferredVoiceURI: voicePrefs.preferredVoiceURI,
+                                      rate: voicePrefs.rate,
+                                    })
+                                  }
+                                  aria-label="Listen to line"
+                                  className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg text-slate-400 hover:text-teal-600 dark:hover:text-teal-400"
+                                >
+                                  <Volume2 className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleShadowLineToggle(turnKey, text)}
+                                  aria-label="Shadow line 3 times"
+                                  title="Shadow 3×"
+                                  className={`min-h-[36px] px-2 flex items-center justify-center gap-1 rounded-lg text-xs font-semibold ${
+                                    isShadowingLine
+                                      ? 'bg-red-500/10 text-red-600 dark:text-red-400'
+                                      : 'text-slate-400 hover:text-teal-600 dark:hover:text-teal-400'
+                                  }`}
+                                >
+                                  {isShadowingLine ? (
+                                    <>
+                                      <Square className="h-3 w-3" />
+                                      <span className="font-mono">{shadowProgress ?? '...'}</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Repeat className="h-3.5 w-3.5" />
+                                      <span>3×</span>
+                                    </>
+                                  )}
+                                </button>
+                              </div>
                             )}
                           </div>
                         );

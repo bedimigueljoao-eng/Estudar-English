@@ -64,6 +64,7 @@ export async function loadAppState(): Promise<AppState> {
       return {
         ...record,
         dialogues: Array.isArray(record.dialogues) ? record.dialogues : createInitialAppState().dialogues,
+        mistakes: Array.isArray(record.mistakes) ? record.mistakes : createInitialAppState().mistakes,
         activeTimer: {
           ...record.activeTimer,
           studyMode: record.activeTimer?.studyMode ?? (record.activeTimer?.topicId ? 'lesson' : 'skill'),
@@ -82,6 +83,7 @@ export async function loadAppState(): Promise<AppState> {
         return {
           ...parsed,
           dialogues: Array.isArray(parsed.dialogues) ? parsed.dialogues : createInitialAppState().dialogues,
+          mistakes: Array.isArray(parsed.mistakes) ? parsed.mistakes : createInitialAppState().mistakes,
           activeTimer: {
             ...parsed.activeTimer,
             studyMode: parsed.activeTimer?.studyMode ?? (parsed.activeTimer?.topicId ? 'lesson' : 'skill'),

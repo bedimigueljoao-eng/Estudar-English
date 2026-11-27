@@ -1,18 +1,27 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   CheckCircle2,
   Eye,
   EyeOff,
   Film,
+  Layers,
   MessageSquare,
   Plus,
+  Repeat,
   Search,
+  Square,
   Star,
   Trash2,
   Volume2,
   X,
 } from 'lucide-react';
-import { isSpeechAvailable, speakEnglishText } from '../services/speechVoice';
+import {
+  isSpeechAvailable,
+  loadVoicePrefs,
+  playShadowingLoop,
+  speakEnglishText,
+  stopAllSpeech,
+} from '../services/speechVoice';
 import { ALL_LEVELS } from '../services/timerBridge';
 import type {
   CEFRLevel,
@@ -22,14 +31,21 @@ import type {
   QuestionDifficulty,
   QuestionEntry,
   RoadmapTopic,
+  SRSRating,
 } from '../types/foco';
 import { formatHoursMinutes, getMonthPrefixISO, getTodayISO } from '../utils/analytics';
+import {
+  computeNextSrsSchedule,
+  isSrsDueToday,
+  previewNextIntervalLabel,
+} from '../utils/srs';
 
 /* ---------------- PHRASE BANK ---------------- */
 interface PhraseBankProps {
   phrases: PhraseEntry[];
   topics: RoadmapTopic[];
   onAddPhrase: (p: PhraseEntry) => void;
+  onUpdatePhrase: (p: PhraseEntry) => void;
   onToggleFav: (id: string) => void;
   onDeletePhrase: (id: string) => void;
 }
@@ -38,24 +54,49 @@ export const PhraseBankView: React.FC<PhraseBankProps> = ({
   phrases,
   topics,
   onAddPhrase,
+  onUpdatePhrase,
   onToggleFav,
   onDeletePhrase,
 }) => {
   const [search, setSearch] = useState('');
   const [levelFilter, setLevelFilter] = useState<'all' | CEFRLevel>('all');
   const [favOnly, setFavOnly] = useState(false);
+  const [dueOnly, setDueOnly] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+
+  // Active Recall SRS session
+  const [recallOpen, setRecallOpen] = useState(false);
+  const [recallRevealed, setRecallRevealed] = useState(false);
+
+  // Shadowing 3x state
+  const [shadowId, setShadowId] = useState<string | null>(null);
+  const [shadowProgress, setShadowProgress] = useState<string | null>(null);
 
   const [sentence, setSentence] = useState('');
   const [translation, setTranslation] = useState('');
   const [example, setExample] = useState('');
   const [topicId, setTopicId] = useState(topics[0]?.id ?? '');
 
+  useEffect(() => {
+    return () => stopAllSpeech();
+  }, []);
+
+  const canSpeak = isSpeechAvailable();
+
+  const duePhrases = useMemo(() => {
+    return phrases
+      .filter((p) => isSrsDueToday(p))
+      .sort((a, b) => Number(b.isFavourite) - Number(a.isFavourite) || a.createdAt - b.createdAt);
+  }, [phrases]);
+
+  const activeRecallCard = duePhrases[0] ?? null;
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return phrases
       .filter((p) => (levelFilter === 'all' ? true : p.level === levelFilter))
       .filter((p) => (favOnly ? p.isFavourite : true))
+      .filter((p) => (dueOnly ? isSrsDueToday(p) : true))
       .filter((p) => {
         if (!q) return true;
         return (
@@ -66,7 +107,7 @@ export const PhraseBankView: React.FC<PhraseBankProps> = ({
         );
       })
       .sort((a, b) => b.createdAt - a.createdAt);
-  }, [phrases, search, levelFilter, favOnly]);
+  }, [phrases, search, levelFilter, favOnly, dueOnly]);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,6 +130,38 @@ export const PhraseBankView: React.FC<PhraseBankProps> = ({
     setModalOpen(false);
   };
 
+  const handleShadowToggle = (id: string, text: string) => {
+    if (shadowId === id) {
+      stopAllSpeech();
+      setShadowId(null);
+      setShadowProgress(null);
+      return;
+    }
+    const prefs = loadVoicePrefs();
+    setShadowId(id);
+    playShadowingLoop(text, {
+      repeats: 3,
+      preferredVoiceURI: prefs.preferredVoiceURI,
+      rate: prefs.rate,
+      onIterationChange: (iter, total) => setShadowProgress(iter ? `${iter}/${total}` : null),
+      onComplete: () => {
+        setShadowId(null);
+        setShadowProgress(null);
+      },
+    });
+  };
+
+  const handleRatePhrase = (p: PhraseEntry, rating: SRSRating) => {
+    stopAllSpeech();
+    setShadowId(null);
+    setShadowProgress(null);
+    onUpdatePhrase({
+      ...p,
+      ...computeNextSrsSchedule(p, rating),
+    });
+    setRecallRevealed(false);
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -97,17 +170,179 @@ export const PhraseBankView: React.FC<PhraseBankProps> = ({
             Phrase Bank
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Searchable offline database of real spoken English chunks, translations, and examples.
+            Spaced repetition (SM-2) chunk vault: recall spoken English from memory and shadow 3× until automatic.
           </p>
         </div>
-        <button
-          onClick={() => setModalOpen(true)}
-          className="min-h-[44px] inline-flex items-center justify-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white whitespace-nowrap shrink-0"
-        >
-          <Plus className="h-4 w-4" />
-          Add Phrase
-        </button>
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <button
+            onClick={() => {
+              setRecallOpen((v) => !v);
+              setRecallRevealed(false);
+            }}
+            className={`min-h-[44px] inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition ${
+              recallOpen
+                ? 'border-teal-600 bg-teal-600/10 text-teal-700 dark:text-teal-400'
+                : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <Layers className="h-4 w-4" />
+            <span className="font-mono tabular-nums">
+              {recallOpen ? 'Close Recall' : `Active Recall (${duePhrases.length} due)`}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setModalOpen(true)}
+            className="min-h-[44px] inline-flex items-center justify-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white whitespace-nowrap"
+          >
+            <Plus className="h-4 w-4" />
+            Add Phrase
+          </button>
+        </div>
       </div>
+
+      {/* SM-2 Active Recall Session Card */}
+      {recallOpen && (
+        <section className="rounded-2xl border border-teal-500/30 bg-white dark:bg-slate-900 p-5 space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-semibold text-teal-700 dark:text-teal-400 font-mono tabular-nums">
+              ACTIVE RECALL QUEUE · {duePhrases.length} REMAINING TODAY
+            </p>
+            <button
+              onClick={() => setRecallOpen(false)}
+              className="text-xs font-medium text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+            >
+              Exit
+            </button>
+          </div>
+
+          {!activeRecallCard ? (
+            <div className="py-6 text-center space-y-2">
+              <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto" />
+              <p className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                All due phrases reviewed for today!
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Your chunks are scheduled via SM-2 spaced repetition so they come back right before you forget them.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 p-4 space-y-2">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  <span className="font-mono font-semibold text-teal-700 dark:text-teal-400">
+                    {activeRecallCard.level}
+                  </span>
+                  <span aria-hidden="true"> · </span>
+                  <span>{activeRecallCard.topicTitle}</span>
+                </p>
+                <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                  Speak this English chunk aloud from memory:
+                </p>
+                <p className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-50">
+                  {activeRecallCard.translation || activeRecallCard.exampleUsage || activeRecallCard.topicTitle}
+                </p>
+                {activeRecallCard.translation && activeRecallCard.exampleUsage && !recallRevealed && (
+                  <p className="text-xs text-slate-500 dark:text-slate-400 italic">
+                    Context: {activeRecallCard.exampleUsage}
+                  </p>
+                )}
+              </div>
+
+              {!recallRevealed ? (
+                <button
+                  onClick={() => {
+                    setRecallRevealed(true);
+                    if (canSpeak) {
+                      speakEnglishText(activeRecallCard.englishSentence);
+                    }
+                  }}
+                  className="w-full min-h-[46px] inline-flex items-center justify-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-sm font-semibold text-white"
+                >
+                  <Eye className="h-4 w-4" />
+                  Reveal & Listen
+                </button>
+              ) : (
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-teal-500/25 bg-teal-500/5 p-4 space-y-2">
+                    <p className="text-lg font-bold text-slate-900 dark:text-slate-50">
+                      “{activeRecallCard.englishSentence}”
+                    </p>
+                    {activeRecallCard.exampleUsage && (
+                      <p className="text-xs text-slate-600 dark:text-slate-300 italic">
+                        Example: {activeRecallCard.exampleUsage}
+                      </p>
+                    )}
+                    {canSpeak && (
+                      <div className="flex flex-wrap items-center gap-2 pt-2">
+                        <button
+                          onClick={() => speakEnglishText(activeRecallCard.englishSentence)}
+                          className="min-h-[40px] inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 text-xs font-semibold text-slate-700 dark:text-slate-200"
+                        >
+                          <Volume2 className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+                          Listen
+                        </button>
+                        <button
+                          onClick={() =>
+                            handleShadowToggle(
+                              `recall-${activeRecallCard.id}`,
+                              activeRecallCard.englishSentence
+                            )
+                          }
+                          className={`min-h-[40px] inline-flex items-center gap-1.5 rounded-xl border px-3.5 text-xs font-semibold ${
+                            shadowId === `recall-${activeRecallCard.id}`
+                              ? 'border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-400'
+                              : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200'
+                          }`}
+                        >
+                          {shadowId === `recall-${activeRecallCard.id}` ? (
+                            <>
+                              <Square className="h-3.5 w-3.5" />
+                              Stop Shadow ({shadowProgress ?? '...'})
+                            </>
+                          ) : (
+                            <>
+                              <Repeat className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+                              Shadow 3×
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                      How effortlessly did you recall & speak it?
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {(
+                        [
+                          { rating: 'again', label: 'Forgot', tone: 'border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-400' },
+                          { rating: 'hard', label: 'Hesitated', tone: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400' },
+                          { rating: 'good', label: 'Natural', tone: 'border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-400' },
+                          { rating: 'easy', label: 'Instant', tone: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' },
+                        ] as const
+                      ).map((btn) => (
+                        <button
+                          key={btn.rating}
+                          onClick={() => handleRatePhrase(activeRecallCard, btn.rating)}
+                          className={`min-h-[44px] rounded-xl border px-3 py-2 text-xs font-semibold flex flex-col items-center justify-center transition hover:opacity-90 ${btn.tone}`}
+                        >
+                          <span>{btn.label}</span>
+                          <span className="font-mono text-[11px] opacity-80">
+                            {previewNextIntervalLabel(activeRecallCard, btn.rating)}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      )}
 
       <div className="flex flex-col md:flex-row gap-3">
         <div className="relative flex-1">
@@ -120,7 +355,7 @@ export const PhraseBankView: React.FC<PhraseBankProps> = ({
             className="w-full min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 pl-10 pr-4 text-sm text-slate-900 dark:text-slate-100"
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <select
             value={levelFilter}
             onChange={(e) => setLevelFilter(e.target.value as 'all' | CEFRLevel)}
@@ -133,6 +368,17 @@ export const PhraseBankView: React.FC<PhraseBankProps> = ({
               </option>
             ))}
           </select>
+          <button
+            onClick={() => setDueOnly(!dueOnly)}
+            className={`min-h-[44px] inline-flex items-center gap-1.5 rounded-xl border px-3.5 text-xs font-semibold transition ${
+              dueOnly
+                ? 'border-teal-600 bg-teal-600/10 text-teal-700 dark:text-teal-400'
+                : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300'
+            }`}
+          >
+            <Layers className="h-4 w-4" />
+            Due ({duePhrases.length})
+          </button>
           <button
             onClick={() => setFavOnly(!favOnly)}
             className={`min-h-[44px] inline-flex items-center gap-1.5 rounded-xl border px-3.5 text-xs font-semibold transition ${
@@ -153,60 +399,97 @@ export const PhraseBankView: React.FC<PhraseBankProps> = ({
             No phrases match your filters.
           </div>
         ) : (
-          filtered.map((p) => (
-            <div key={p.id} className="p-4 sm:p-5 flex items-start justify-between gap-4">
-              <div className="space-y-1 min-w-0">
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  <span className="font-mono font-semibold text-teal-700 dark:text-teal-400">
-                    {p.level}
-                  </span>
-                  <span aria-hidden="true"> · </span>
-                  <span>{p.topicTitle}</span>
-                </p>
-                <p className="text-base font-semibold text-slate-900 dark:text-slate-50">
-                  “{p.englishSentence}”
-                </p>
-                {p.translation && (
-                  <p className="text-sm text-slate-600 dark:text-slate-300">{p.translation}</p>
-                )}
-                {p.exampleUsage && (
-                  <p className="text-xs text-slate-500 dark:text-slate-400 italic">
-                    Example: {p.exampleUsage}
+          filtered.map((p) => {
+            const isShadowing = shadowId === p.id;
+            const due = isSrsDueToday(p);
+
+            return (
+              <div key={p.id} className="p-4 sm:p-5 flex items-start justify-between gap-4">
+                <div className="space-y-1 min-w-0">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    <span className="font-mono font-semibold text-teal-700 dark:text-teal-400">
+                      {p.level}
+                    </span>
+                    <span aria-hidden="true"> · </span>
+                    <span>{p.topicTitle}</span>
+                    <span aria-hidden="true"> · </span>
+                    <span
+                      className={`font-mono ${
+                        due ? 'text-amber-600 dark:text-amber-400 font-semibold' : ''
+                      }`}
+                    >
+                      {due ? 'Due today' : `Next ${p.srsNextReviewDate}`}
+                    </span>
                   </p>
-                )}
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                {isSpeechAvailable() && (
+                  <p className="text-base font-semibold text-slate-900 dark:text-slate-50">
+                    “{p.englishSentence}”
+                  </p>
+                  {p.translation && (
+                    <p className="text-sm text-slate-600 dark:text-slate-300">{p.translation}</p>
+                  )}
+                  {p.exampleUsage && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400 italic">
+                      Example: {p.exampleUsage}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  {canSpeak && (
+                    <>
+                      <button
+                        onClick={() => speakEnglishText(p.englishSentence)}
+                        aria-label="Listen to phrase"
+                        title="Listen in English"
+                        className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg text-slate-500 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                      >
+                        <Volume2 className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => handleShadowToggle(p.id, p.englishSentence)}
+                        aria-label="Shadow phrase 3 times"
+                        title="Shadow 3× with mimicry pauses"
+                        className={`min-h-[40px] px-2.5 flex items-center justify-center gap-1 rounded-lg text-xs font-semibold transition ${
+                          isShadowing
+                            ? 'bg-red-500/10 text-red-600 dark:text-red-400'
+                            : 'text-slate-500 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                        }`}
+                      >
+                        {isShadowing ? (
+                          <>
+                            <Square className="h-3.5 w-3.5" />
+                            <span className="font-mono">{shadowProgress ?? '...'}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Repeat className="h-3.5 w-3.5" />
+                            <span>3×</span>
+                          </>
+                        )}
+                      </button>
+                    </>
+                  )}
                   <button
-                    onClick={() => speakEnglishText(p.englishSentence)}
-                    aria-label="Listen to phrase"
-                    title="Listen in English"
-                    className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg text-slate-500 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                    onClick={() => onToggleFav(p.id)}
+                    aria-label="Toggle favourite"
+                    className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
                   >
-                    <Volume2 className="h-4 w-4" />
+                    <Star
+                      className={`h-4 w-4 ${
+                        p.isFavourite ? 'fill-amber-500 text-amber-500' : 'text-slate-400'
+                      }`}
+                    />
                   </button>
-                )}
-                <button
-                  onClick={() => onToggleFav(p.id)}
-                  aria-label="Toggle favourite"
-                  className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
-                >
-                  <Star
-                    className={`h-4 w-4 ${
-                      p.isFavourite ? 'fill-amber-500 text-amber-500' : 'text-slate-400'
-                    }`}
-                  />
-                </button>
-                <button
-                  onClick={() => onDeletePhrase(p.id)}
-                  aria-label="Delete phrase"
-                  className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                  <button
+                    onClick={() => onDeletePhrase(p.id)}
+                    aria-label="Delete phrase"
+                    className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -292,6 +575,7 @@ interface QuestionBankProps {
   questions: QuestionEntry[];
   topics: RoadmapTopic[];
   onAddQuestion: (q: QuestionEntry) => void;
+  onUpdateQuestion: (q: QuestionEntry) => void;
   onMarkPracticed: (id: string) => void;
   onDeleteQuestion: (id: string) => void;
 }
@@ -300,25 +584,48 @@ export const QuestionBankView: React.FC<QuestionBankProps> = ({
   questions,
   topics,
   onAddQuestion,
+  onUpdateQuestion,
   onMarkPracticed,
   onDeleteQuestion,
 }) => {
   const [levelFilter, setLevelFilter] = useState<'all' | CEFRLevel>('all');
   const [diffFilter, setDiffFilter] = useState<'all' | QuestionDifficulty>('all');
+  const [dueOnly, setDueOnly] = useState(false);
   const [revealedIds, setRevealedIds] = useState<Record<string, boolean>>({});
   const [modalOpen, setModalOpen] = useState(false);
+
+  // Active Recall Speaking Session
+  const [recallOpen, setRecallOpen] = useState(false);
+  const [recallRevealed, setRecallRevealed] = useState(false);
+  const [shadowId, setShadowId] = useState<string | null>(null);
+  const [shadowProgress, setShadowProgress] = useState<string | null>(null);
 
   const [questionText, setQuestionText] = useState('');
   const [suggestedAnswer, setSuggestedAnswer] = useState('');
   const [difficulty, setDifficulty] = useState<QuestionDifficulty>('Medium');
   const [topicId, setTopicId] = useState(topics[0]?.id ?? '');
 
+  useEffect(() => {
+    return () => stopAllSpeech();
+  }, []);
+
+  const canSpeak = isSpeechAvailable();
+
+  const dueQuestions = useMemo(() => {
+    return questions
+      .filter((q) => isSrsDueToday(q))
+      .sort((a, b) => a.practicedCount - b.practicedCount || a.createdAt - b.createdAt);
+  }, [questions]);
+
+  const activeRecallQuestion = dueQuestions[0] ?? null;
+
   const filtered = useMemo(() => {
     return questions
       .filter((q) => (levelFilter === 'all' ? true : q.level === levelFilter))
       .filter((q) => (diffFilter === 'all' ? true : q.difficulty === diffFilter))
+      .filter((q) => (dueOnly ? isSrsDueToday(q) : true))
       .sort((a, b) => b.createdAt - a.createdAt);
-  }, [questions, levelFilter, diffFilter]);
+  }, [questions, levelFilter, diffFilter, dueOnly]);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -340,6 +647,40 @@ export const QuestionBankView: React.FC<QuestionBankProps> = ({
     setModalOpen(false);
   };
 
+  const handleShadowToggle = (id: string, text: string) => {
+    if (shadowId === id) {
+      stopAllSpeech();
+      setShadowId(null);
+      setShadowProgress(null);
+      return;
+    }
+    const prefs = loadVoicePrefs();
+    setShadowId(id);
+    playShadowingLoop(text, {
+      repeats: 3,
+      preferredVoiceURI: prefs.preferredVoiceURI,
+      rate: prefs.rate,
+      onIterationChange: (iter, total) => setShadowProgress(iter ? `${iter}/${total}` : null),
+      onComplete: () => {
+        setShadowId(null);
+        setShadowProgress(null);
+      },
+    });
+  };
+
+  const handleRateQuestion = (q: QuestionEntry, rating: SRSRating) => {
+    stopAllSpeech();
+    setShadowId(null);
+    setShadowProgress(null);
+    onUpdateQuestion({
+      ...q,
+      practicedCount: q.practicedCount + 1,
+      lastPracticedAt: Date.now(),
+      ...computeNextSrsSchedule(q, rating),
+    });
+    setRecallRevealed(false);
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -348,17 +689,183 @@ export const QuestionBankView: React.FC<QuestionBankProps> = ({
             Speaking Question Bank
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Conversation prompts for active spoken rehearsal. Answer aloud first, then reveal the model answer.
+            Spaced speaking prompts: answer aloud before revealing the model answer, then shadow 3× for fluency.
           </p>
         </div>
-        <button
-          onClick={() => setModalOpen(true)}
-          className="min-h-[44px] inline-flex items-center justify-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white whitespace-nowrap shrink-0"
-        >
-          <Plus className="h-4 w-4" />
-          Add Question
-        </button>
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <button
+            onClick={() => {
+              setRecallOpen((v) => !v);
+              setRecallRevealed(false);
+            }}
+            className={`min-h-[44px] inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition ${
+              recallOpen
+                ? 'border-teal-600 bg-teal-600/10 text-teal-700 dark:text-teal-400'
+                : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <Layers className="h-4 w-4" />
+            <span className="font-mono tabular-nums">
+              {recallOpen ? 'Close Session' : `Active Recall (${dueQuestions.length} due)`}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setModalOpen(true)}
+            className="min-h-[44px] inline-flex items-center justify-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white whitespace-nowrap"
+          >
+            <Plus className="h-4 w-4" />
+            Add Question
+          </button>
+        </div>
       </div>
+
+      {/* Active Recall Question Session */}
+      {recallOpen && (
+        <section className="rounded-2xl border border-teal-500/30 bg-white dark:bg-slate-900 p-5 space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-semibold text-teal-700 dark:text-teal-400 font-mono tabular-nums">
+              SPOKEN RECALL SESSION · {dueQuestions.length} DUE TODAY
+            </p>
+            <button
+              onClick={() => setRecallOpen(false)}
+              className="text-xs font-medium text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+            >
+              Exit
+            </button>
+          </div>
+
+          {!activeRecallQuestion ? (
+            <div className="py-6 text-center space-y-2">
+              <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto" />
+              <p className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                All speaking prompts due today are complete!
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Spaced repetition will surface each question again right on schedule.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 p-4 space-y-2.5">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  <span className="font-mono font-semibold text-teal-700 dark:text-teal-400">
+                    {activeRecallQuestion.level}
+                  </span>
+                  <span aria-hidden="true"> · </span>
+                  <span>{activeRecallQuestion.difficulty}</span>
+                  <span aria-hidden="true"> · </span>
+                  <span>{activeRecallQuestion.topicTitle}</span>
+                </p>
+                <p className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-50">
+                  {activeRecallQuestion.question}
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Speak a 30–60 second response aloud first, then compare with the model answer.
+                </p>
+                {canSpeak && (
+                  <button
+                    onClick={() => speakEnglishText(activeRecallQuestion.question)}
+                    className="min-h-[38px] inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-xs font-semibold text-slate-700 dark:text-slate-200"
+                  >
+                    <Volume2 className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+                    Listen Question
+                  </button>
+                )}
+              </div>
+
+              {!recallRevealed ? (
+                <button
+                  onClick={() => setRecallRevealed(true)}
+                  className="w-full min-h-[46px] inline-flex items-center justify-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-sm font-semibold text-white"
+                >
+                  <Eye className="h-4 w-4" />
+                  I Answered Aloud · Show Model Answer
+                </button>
+              ) : (
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-teal-500/25 bg-teal-500/5 p-4 space-y-2.5">
+                    <p className="text-xs font-semibold text-teal-700 dark:text-teal-400">
+                      Model Spoken Answer
+                    </p>
+                    <p className="text-sm leading-relaxed text-slate-800 dark:text-slate-200">
+                      {activeRecallQuestion.suggestedAnswer ||
+                        'No reference script saved — evaluate your fluency and clarity.'}
+                    </p>
+                    {canSpeak && (
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        <button
+                          onClick={() =>
+                            speakEnglishText(
+                              activeRecallQuestion.suggestedAnswer || activeRecallQuestion.question
+                            )
+                          }
+                          className="min-h-[40px] inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 text-xs font-semibold text-slate-700 dark:text-slate-200"
+                        >
+                          <Volume2 className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+                          Listen Answer
+                        </button>
+                        <button
+                          onClick={() =>
+                            handleShadowToggle(
+                              `q-recall-${activeRecallQuestion.id}`,
+                              activeRecallQuestion.suggestedAnswer || activeRecallQuestion.question
+                            )
+                          }
+                          className={`min-h-[40px] inline-flex items-center gap-1.5 rounded-xl border px-3.5 text-xs font-semibold ${
+                            shadowId === `q-recall-${activeRecallQuestion.id}`
+                              ? 'border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-400'
+                              : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200'
+                          }`}
+                        >
+                          {shadowId === `q-recall-${activeRecallQuestion.id}` ? (
+                            <>
+                              <Square className="h-3.5 w-3.5" />
+                              Stop Shadow ({shadowProgress ?? '...'})
+                            </>
+                          ) : (
+                            <>
+                              <Repeat className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+                              Shadow 3×
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                      How smoothly did you answer aloud?
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {(
+                        [
+                          { rating: 'again', label: 'Stuck', tone: 'border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-400' },
+                          { rating: 'hard', label: 'Hesitated', tone: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400' },
+                          { rating: 'good', label: 'Natural', tone: 'border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-400' },
+                          { rating: 'easy', label: 'Fluent', tone: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' },
+                        ] as const
+                      ).map((btn) => (
+                        <button
+                          key={btn.rating}
+                          onClick={() => handleRateQuestion(activeRecallQuestion, btn.rating)}
+                          className={`min-h-[44px] rounded-xl border px-3 py-2 text-xs font-semibold flex flex-col items-center justify-center transition hover:opacity-90 ${btn.tone}`}
+                        >
+                          <span>{btn.label}</span>
+                          <span className="font-mono text-[11px] opacity-80">
+                            {previewNextIntervalLabel(activeRecallQuestion, btn.rating)}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      )}
 
       <div className="flex flex-wrap items-center gap-3">
         <select
@@ -389,11 +896,26 @@ export const QuestionBankView: React.FC<QuestionBankProps> = ({
             </button>
           ))}
         </div>
+
+        <button
+          onClick={() => setDueOnly(!dueOnly)}
+          className={`min-h-[44px] inline-flex items-center gap-1.5 rounded-xl border px-3.5 text-xs font-semibold transition ${
+            dueOnly
+              ? 'border-teal-600 bg-teal-600/10 text-teal-700 dark:text-teal-400'
+              : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300'
+          }`}
+        >
+          <Layers className="h-4 w-4" />
+          Due ({dueQuestions.length})
+        </button>
       </div>
 
       <div className="space-y-3">
         {filtered.map((q) => {
           const revealed = !!revealedIds[q.id];
+          const isShadowing = shadowId === q.id;
+          const due = isSrsDueToday(q);
+
           return (
             <div
               key={q.id}
@@ -412,6 +934,14 @@ export const QuestionBankView: React.FC<QuestionBankProps> = ({
                     <span aria-hidden="true"> · </span>
                     <span className="font-mono tabular-nums">
                       Spoken {q.practicedCount}×
+                    </span>
+                    <span aria-hidden="true"> · </span>
+                    <span
+                      className={`font-mono ${
+                        due ? 'text-amber-600 dark:text-amber-400 font-semibold' : ''
+                      }`}
+                    >
+                      {due ? 'Due today' : `Next ${q.srsNextReviewDate}`}
                     </span>
                   </p>
                   <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-start gap-2">
@@ -435,20 +965,44 @@ export const QuestionBankView: React.FC<QuestionBankProps> = ({
               )}
 
               <div className="flex flex-wrap items-center gap-2 pt-1">
-                {isSpeechAvailable() && (
-                  <button
-                    onClick={() =>
-                      speakEnglishText(
-                        revealed && q.suggestedAnswer
-                          ? `${q.question}. ${q.suggestedAnswer}`
-                          : q.question
-                      )
-                    }
-                    className="min-h-[40px] inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 px-3.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-                  >
-                    <Volume2 className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
-                    {revealed ? 'Listen Q&A' : 'Listen Question'}
-                  </button>
+                {canSpeak && (
+                  <>
+                    <button
+                      onClick={() =>
+                        speakEnglishText(
+                          revealed && q.suggestedAnswer
+                            ? `${q.question}. ${q.suggestedAnswer}`
+                            : q.question
+                        )
+                      }
+                      className="min-h-[40px] inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 px-3.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                    >
+                      <Volume2 className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+                      {revealed ? 'Listen Q&A' : 'Listen Question'}
+                    </button>
+                    <button
+                      onClick={() =>
+                        handleShadowToggle(q.id, q.suggestedAnswer || q.question)
+                      }
+                      className={`min-h-[40px] inline-flex items-center gap-1.5 rounded-xl border px-3.5 text-xs font-semibold transition ${
+                        isShadowing
+                          ? 'border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-400'
+                          : 'border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      {isShadowing ? (
+                        <>
+                          <Square className="h-3.5 w-3.5" />
+                          Stop Shadow ({shadowProgress ?? '...'})
+                        </>
+                      ) : (
+                        <>
+                          <Repeat className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+                          Shadow 3×
+                        </>
+                      )}
+                    </button>
+                  </>
                 )}
                 <button
                   onClick={() =>

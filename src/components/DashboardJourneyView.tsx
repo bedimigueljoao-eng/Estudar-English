@@ -1,8 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import {
+  AlertCircle,
   ArrowRight,
+  BookOpen,
   CalendarClock,
   Flame,
+  Layers,
+  MessageSquare,
+  MessagesSquare,
   Mic,
   Play,
   Target,
@@ -17,6 +22,7 @@ import {
   formatHoursMinutes,
   getTopicDeadlineState,
 } from '../utils/analytics';
+import { isSrsDueToday } from '../utils/srs';
 
 interface DashboardJourneyViewProps {
   mode: 'dashboard' | 'journey';
@@ -102,6 +108,11 @@ export const DashboardJourneyView: React.FC<DashboardJourneyViewProps> = ({
 
   const masteredCount = state.topics.filter((t) => t.status === 'mastered').length;
   const totalTopicsCount = state.topics.length;
+
+  const duePhrasesCount = state.phrases.filter((p) => isSrsDueToday(p)).length;
+  const dueQuestionsCount = state.questions.filter((q) => isSrsDueToday(q)).length;
+  const dueDialoguesCount = state.dialogues.filter((d) => isSrsDueToday(d)).length;
+  const practicingMistakesCount = (state.mistakes ?? []).filter((m) => m.status === 'practicing').length;
 
   return (
     <div className="space-y-6">
@@ -189,6 +200,82 @@ export const DashboardJourneyView: React.FC<DashboardJourneyViewProps> = ({
           label="Monthly Goal"
           subtext={`${formatHoursMinutes(metrics.monthSeconds)} / ${formatHoursMinutes(state.goals.monthlyMinutes * 60)}`}
         />
+      </section>
+
+      {/* Daily Active Recall & Fluency Queue */}
+      <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-3.5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Layers className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+            <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+              Daily Active Recall & Fluency Queue
+            </h2>
+          </div>
+          <span className="text-xs text-slate-500 dark:text-slate-400">
+            SM-2 Spaced Output
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {(
+            [
+              {
+                section: 'phrases' as AppSection,
+                label: 'Phrases Due',
+                count: duePhrasesCount,
+                sub: 'Recall & Shadow 3×',
+                icon: BookOpen,
+                tone: 'text-teal-700 dark:text-teal-400',
+              },
+              {
+                section: 'questions' as AppSection,
+                label: 'Questions Due',
+                count: dueQuestionsCount,
+                sub: 'Answer Aloud',
+                icon: MessageSquare,
+                tone: 'text-blue-600 dark:text-blue-400',
+              },
+              {
+                section: 'dialogues' as AppSection,
+                label: 'Dialogues Due',
+                count: dueDialoguesCount,
+                sub: 'Turn-by-Turn Roleplay',
+                icon: MessagesSquare,
+                tone: 'text-indigo-600 dark:text-indigo-400',
+              },
+              {
+                section: 'mistakes' as AppSection,
+                label: 'Active Mistakes',
+                count: practicingMistakesCount,
+                sub: 'Error Log Rewiring',
+                icon: AlertCircle,
+                tone: 'text-amber-600 dark:text-amber-400',
+              },
+            ] as const
+          ).map((card) => {
+            const Icon = card.icon;
+            return (
+              <button
+                key={card.section}
+                onClick={() => onNavigate(card.section)}
+                className="text-left rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 hover:border-teal-500/40 p-3.5 space-y-1.5 transition"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <Icon className={`h-4 w-4 ${card.tone}`} />
+                  <span className={`font-mono text-lg font-bold tabular-nums ${card.tone}`}>
+                    {card.count}
+                  </span>
+                </div>
+                <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">
+                  {card.label}
+                </p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                  {card.sub}
+                </p>
+              </button>
+            );
+          })}
+        </div>
       </section>
 
       {/* Two-Column Actionable Priorities */}

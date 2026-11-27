@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bell,
+  CheckSquare,
   Clock,
   Edit3,
   Mic,
   Pause,
   Play,
+  RefreshCw,
   RotateCcw,
   Save,
   Square,
@@ -26,15 +28,20 @@ import {
 import type {
   ActiveTimerState,
   CEFRLevel,
+  PhraseEntry,
+  QuestionEntry,
   RoadmapTopic,
   SkillType,
   TimerActivity,
 } from '../types/foco';
 import { formatHMS } from '../utils/analytics';
+import { isSrsDueToday } from '../utils/srs';
 
 interface StudyTimerViewProps {
   timer: ActiveTimerState;
   topics: RoadmapTopic[];
+  phrases: PhraseEntry[];
+  questions: QuestionEntry[];
   notificationsEnabled: boolean;
   onUpdateTimerConfig: (patch: Partial<ActiveTimerState>) => void;
   onStart: () => void;
@@ -57,6 +64,8 @@ interface AudioRecordingItem {
 export const StudyTimerView: React.FC<StudyTimerViewProps> = ({
   timer,
   topics,
+  phrases,
+  questions,
   notificationsEnabled,
   onUpdateTimerConfig,
   onStart,
@@ -72,6 +81,10 @@ export const StudyTimerView: React.FC<StudyTimerViewProps> = ({
   const [editHours, setEditHours] = useState(0);
   const [editMinutes, setEditMinutes] = useState(0);
   const [editSeconds, setEditSeconds] = useState(0);
+
+  // Output Challenge: Speak Saved Chunks
+  const [challengeSeed, setChallengeSeed] = useState(0);
+  const [usedChunkIds, setUsedChunkIds] = useState<Record<string, boolean>>({});
 
   // Offline Speaking Voice Self-Check Recorder
   const [isRecording, setIsRecording] = useState(false);
@@ -96,6 +109,30 @@ export const StudyTimerView: React.FC<StudyTimerViewProps> = ({
     () => (isLessonMode ? topics.find((t) => t.id === timer.topicId) ?? topics[0] : undefined),
     [isLessonMode, topics, timer.topicId]
   );
+
+  const outputChallenge = useMemo(() => {
+    const prioritizedPhrases = [...phrases].sort((a, b) => {
+      const scoreA = (isSrsDueToday(a) ? 2 : 0) + (a.isFavourite ? 1 : 0);
+      const scoreB = (isSrsDueToday(b) ? 2 : 0) + (b.isFavourite ? 1 : 0);
+      return scoreB - scoreA;
+    });
+    const phraseOffset =
+      prioritizedPhrases.length > 0 ? (challengeSeed * 3) % prioritizedPhrases.length : 0;
+    const pickedPhrases: PhraseEntry[] = [];
+    for (let i = 0; i < Math.min(3, prioritizedPhrases.length); i++) {
+      pickedPhrases.push(prioritizedPhrases[(phraseOffset + i) % prioritizedPhrases.length]);
+    }
+
+    const prioritizedQuestions = [...questions].sort(
+      (a, b) => Number(isSrsDueToday(b)) - Number(isSrsDueToday(a)) || a.practicedCount - b.practicedCount
+    );
+    const pickedQuestion =
+      prioritizedQuestions.length > 0
+        ? prioritizedQuestions[challengeSeed % prioritizedQuestions.length]
+        : null;
+
+    return { phrases: pickedPhrases, question: pickedQuestion };
+  }, [phrases, questions, challengeSeed]);
 
   const openEditTimeModal = () => {
     const h = Math.floor(elapsedSeconds / 3600);
@@ -550,6 +587,64 @@ export const StudyTimerView: React.FC<StudyTimerViewProps> = ({
           )}
 
           {recorderError && <p className="text-xs text-red-600 dark:text-red-400">{recorderError}</p>}
+
+          {/* Pushed Output Challenge: Speak Saved Chunks */}
+          {(outputChallenge.phrases.length > 0 || outputChallenge.question) && (
+            <div className="rounded-xl border border-teal-500/25 bg-teal-500/5 p-3.5 space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-teal-700 dark:text-teal-400">
+                  Output Challenge · Speak Saved Chunks Aloud
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setChallengeSeed((s) => s + 1);
+                    setUsedChunkIds({});
+                  }}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-teal-700 dark:hover:text-teal-400"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  New Set
+                </button>
+              </div>
+              {outputChallenge.question && (
+                <p className="text-xs text-slate-700 dark:text-slate-200 font-medium">
+                  Prompt: “{outputChallenge.question.question}”
+                </p>
+              )}
+              {outputChallenge.phrases.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Tap each chunk as you use it naturally while speaking:
+                  </p>
+                  {outputChallenge.phrases.map((ph) => {
+                    const checked = !!usedChunkIds[ph.id];
+                    return (
+                      <button
+                        key={ph.id}
+                        type="button"
+                        onClick={() =>
+                          setUsedChunkIds((prev) => ({ ...prev, [ph.id]: !prev[ph.id] }))
+                        }
+                        className={`w-full text-left rounded-lg border px-3 py-2 text-xs flex items-center gap-2 transition ${
+                          checked
+                            ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 line-through'
+                            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200'
+                        }`}
+                      >
+                        <CheckSquare
+                          className={`h-3.5 w-3.5 shrink-0 ${
+                            checked ? 'text-emerald-500' : 'text-slate-400'
+                          }`}
+                        />
+                        <span className="truncate font-medium">“{ph.englishSentence}”</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="space-y-2">
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">

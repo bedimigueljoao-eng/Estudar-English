@@ -61,6 +61,7 @@ export const SettingsBackupView: React.FC<SettingsBackupViewProps> = ({
       onRestoreFullBackup({
         ...parsed,
         dialogues: Array.isArray(parsed.dialogues) ? parsed.dialogues : [],
+        mistakes: Array.isArray(parsed.mistakes) ? parsed.mistakes : [],
         activeTimer: {
           ...parsed.activeTimer,
           studyMode: parsed.activeTimer?.studyMode ?? (parsed.activeTimer?.topicId ? 'lesson' : 'skill'),
