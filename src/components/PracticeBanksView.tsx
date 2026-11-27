@@ -9,8 +9,10 @@ import {
   Search,
   Star,
   Trash2,
+  Volume2,
   X,
 } from 'lucide-react';
+import { isSpeechAvailable, speakEnglishText } from '../services/speechVoice';
 import { ALL_LEVELS } from '../services/timerBridge';
 import type {
   CEFRLevel,
@@ -174,6 +176,16 @@ export const PhraseBankView: React.FC<PhraseBankProps> = ({
                 )}
               </div>
               <div className="flex items-center gap-1 shrink-0">
+                {isSpeechAvailable() && (
+                  <button
+                    onClick={() => speakEnglishText(p.englishSentence)}
+                    aria-label="Listen to phrase"
+                    title="Listen in English"
+                    className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg text-slate-500 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  >
+                    <Volume2 className="h-4 w-4" />
+                  </button>
+                )}
                 <button
                   onClick={() => onToggleFav(p.id)}
                   aria-label="Toggle favourite"
@@ -423,6 +435,21 @@ export const QuestionBankView: React.FC<QuestionBankProps> = ({
               )}
 
               <div className="flex flex-wrap items-center gap-2 pt-1">
+                {isSpeechAvailable() && (
+                  <button
+                    onClick={() =>
+                      speakEnglishText(
+                        revealed && q.suggestedAnswer
+                          ? `${q.question}. ${q.suggestedAnswer}`
+                          : q.question
+                      )
+                    }
+                    className="min-h-[40px] inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 px-3.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  >
+                    <Volume2 className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+                    {revealed ? 'Listen Q&A' : 'Listen Question'}
+                  </button>
+                )}
                 <button
                   onClick={() =>
                     setRevealedIds((prev) => ({ ...prev, [q.id]: !prev[q.id] }))

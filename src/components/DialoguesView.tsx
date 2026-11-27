@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   CheckCircle2,
   Edit3,
@@ -13,6 +13,15 @@ import {
   Volume2,
   X,
 } from 'lucide-react';
+import {
+  getRankedEnglishVoices,
+  isSpeechAvailable,
+  loadVoicePrefs,
+  playDialogueTurns,
+  saveVoicePrefs,
+  speakEnglishText,
+  stopAllSpeech,
+} from '../services/speechVoice';
 import { ALL_LEVELS } from '../services/timerBridge';
 import type { CEFRLevel, DialogueEntry, RoadmapTopic } from '../types/foco';
 
@@ -25,6 +34,13 @@ interface DialoguesViewProps {
 }
 
 const SOURCE_PRESETS = ['AI Tutor Summary', 'Roleplay', 'Real Conversation', 'Podcast / Video Script'];
+
+const SPEED_OPTIONS = [
+  { label: '0.75× Slow', value: 0.75 },
+  { label: '0.92× Clear', value: 0.92 },
+  { label: '1.0× Natural', value: 1.0 },
+  { label: '1.15× Fast', value: 1.15 },
+];
 
 function parseTurn(line: string): { speaker: string | null; text: string } {
   const match = line.match(/^([A-Za-zÀ-ÿ0-9 _-]{1,22}):\s*(.+)$/);
@@ -46,7 +62,12 @@ export const DialoguesView: React.FC<DialoguesViewProps> = ({
   const [hideMyLinesMap, setHideMyLinesMap] = useState<Record<string, boolean>>({});
   const [revealedTurns, setRevealedTurns] = useState<Record<string, boolean>>({});
   const [speakingId, setSpeakingId] = useState<string | null>(null);
+  const [activeTurnIdx, setActiveTurnIdx] = useState<number | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  // Voice & Speed controls
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [voicePrefs, setVoicePrefs] = useState(() => loadVoicePrefs());
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -57,6 +78,25 @@ export const DialoguesView: React.FC<DialoguesViewProps> = ({
   const [formSource, setFormSource] = useState('AI Tutor Summary');
   const [formScript, setFormScript] = useState('');
   const [formTakeaways, setFormTakeaways] = useState('');
+
+  useEffect(() => {
+    const refreshVoices = () => setVoices(getRankedEnglishVoices());
+    refreshVoices();
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.addEventListener('voiceschanged', refreshVoices);
+      return () => {
+        window.speechSynthesis.removeEventListener('voiceschanged', refreshVoices);
+        stopAllSpeech();
+      };
+    }
+    return () => stopAllSpeech();
+  }, []);
+
+  const updateVoicePrefs = (patch: Partial<typeof voicePrefs>) => {
+    const next = { ...voicePrefs, ...patch };
+    setVoicePrefs(next);
+    saveVoicePrefs(next);
+  };
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -134,43 +174,40 @@ export const DialoguesView: React.FC<DialoguesViewProps> = ({
     setModalOpen(false);
   };
 
-  const speakDialogueOffline = (d: DialogueEntry) => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
+  const handlePlayDialogue = (d: DialogueEntry) => {
     if (speakingId === d.id) {
+      stopAllSpeech();
       setSpeakingId(null);
+      setActiveTurnIdx(null);
       return;
     }
 
     const lines = d.script
       .split('\n')
-      .map((l) => parseTurn(l.trim()).text)
+      .map((l) => l.trim())
       .filter(Boolean);
-    if (lines.length === 0) return;
+
+    const turns = lines.map((line) => {
+      const { speaker, text } = parseTurn(line);
+      const isSelf =
+        speaker !== null &&
+        ['you', 'eu', 'me', 'student', 'learner'].includes(speaker.toLowerCase());
+      return { text, isSelf };
+    });
 
     setSpeakingId(d.id);
-    lines.forEach((line, idx) => {
-      const utter = new SpeechSynthesisUtterance(line);
-      utter.lang = 'en-US';
-      utter.rate = 0.95;
-      if (idx === lines.length - 1) {
-        utter.onend = () => setSpeakingId(null);
-        utter.onerror = () => setSpeakingId(null);
-      }
-      window.speechSynthesis.speak(utter);
+    playDialogueTurns(turns, {
+      preferredVoiceURI: voicePrefs.preferredVoiceURI,
+      rate: voicePrefs.rate,
+      onTurnChange: (idx) => setActiveTurnIdx(idx),
+      onComplete: () => {
+        setSpeakingId(null);
+        setActiveTurnIdx(null);
+      },
     });
   };
 
-  const speakSingleLine = (text: string) => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.lang = 'en-US';
-    utter.rate = 0.95;
-    window.speechSynthesis.speak(utter);
-  };
-
-  const canSpeak = typeof window !== 'undefined' && 'speechSynthesis' in window;
+  const canSpeak = isSpeechAvailable();
 
   return (
     <div className="space-y-5">
@@ -180,7 +217,7 @@ export const DialoguesView: React.FC<DialoguesViewProps> = ({
             Saved Dialogues & AI Conversation Recaps
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Save text dialogues and AI conversation summaries to review corrections, hide your lines, and practice speaking again.
+            Save text dialogues and AI conversation summaries to review corrections, hide your lines, and practice speaking with dual-voice playback.
           </p>
         </div>
         <button
@@ -191,6 +228,51 @@ export const DialoguesView: React.FC<DialoguesViewProps> = ({
           Save Dialogue
         </button>
       </div>
+
+      {/* Natural English Voice & Pace Bar */}
+      {canSpeak && (
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <Volume2 className="h-4 w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+            <label className="flex items-center gap-2 text-xs min-w-0 flex-1">
+              <span className="font-semibold text-slate-700 dark:text-slate-300 shrink-0">
+                English Voice:
+              </span>
+              <select
+                value={voicePrefs.preferredVoiceURI || voices[0]?.voiceURI || ''}
+                onChange={(e) => updateVoicePrefs({ preferredVoiceURI: e.target.value })}
+                className="min-h-[38px] w-full max-w-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 text-xs text-slate-900 dark:text-slate-100 truncate"
+              >
+                {voices.length === 0 ? (
+                  <option value="">System English Voice</option>
+                ) : (
+                  voices.map((v) => (
+                    <option key={v.voiceURI} value={v.voiceURI}>
+                      {v.name} ({v.lang})
+                    </option>
+                  ))
+                )}
+              </select>
+            </label>
+          </div>
+
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 overflow-x-auto">
+            {SPEED_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => updateVoicePrefs({ rate: opt.value })}
+                className={`min-h-[34px] px-2.5 rounded-lg text-xs font-mono font-medium whitespace-nowrap transition ${
+                  Math.abs(voicePrefs.rate - opt.value) < 0.02
+                    ? 'bg-white dark:bg-slate-900 text-teal-700 dark:text-teal-400 shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-col md:flex-row gap-3">
@@ -241,6 +323,7 @@ export const DialoguesView: React.FC<DialoguesViewProps> = ({
           filtered.map((d) => {
             const isExpanded = expandedId === d.id;
             const hideMyLines = !!hideMyLinesMap[d.id];
+            const isPlayingThis = speakingId === d.id;
             const lines = d.script
               .split('\n')
               .map((l) => l.trim())
@@ -340,12 +423,16 @@ export const DialoguesView: React.FC<DialoguesViewProps> = ({
 
                       {canSpeak && (
                         <button
-                          onClick={() => speakDialogueOffline(d)}
-                          className="min-h-[40px] inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 px-3.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                          onClick={() => handlePlayDialogue(d)}
+                          className={`min-h-[40px] inline-flex items-center gap-1.5 rounded-xl border px-3.5 text-xs font-semibold transition ${
+                            isPlayingThis
+                              ? 'border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-400'
+                              : 'border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                          }`}
                         >
-                          {speakingId === d.id ? (
+                          {isPlayingThis ? (
                             <>
-                              <Square className="h-3.5 w-3.5 text-red-500" /> Stop Audio
+                              <Square className="h-3.5 w-3.5" /> Stop Audio
                             </>
                           ) : (
                             <>
@@ -381,14 +468,17 @@ export const DialoguesView: React.FC<DialoguesViewProps> = ({
                           );
                         const turnKey = `${d.id}-${idx}`;
                         const isHidden = hideMyLines && isSelf && !revealedTurns[turnKey];
+                        const isCurrentlySpoken = isPlayingThis && activeTurnIdx === idx;
 
                         return (
                           <div
                             key={turnKey}
-                            className={`rounded-xl border p-3.5 flex items-start justify-between gap-3 ${
-                              isSelf
-                                ? 'border-teal-600/25 bg-teal-600/5 dark:bg-teal-500/10'
-                                : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50'
+                            className={`rounded-xl border p-3.5 flex items-start justify-between gap-3 transition ${
+                              isCurrentlySpoken
+                                ? 'border-teal-500 ring-1 ring-teal-500/40 bg-teal-500/10'
+                                : isSelf
+                                  ? 'border-teal-600/25 bg-teal-600/5 dark:bg-teal-500/10'
+                                  : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50'
                             }`}
                           >
                             <div className="space-y-1 min-w-0 flex-1">
@@ -420,7 +510,12 @@ export const DialoguesView: React.FC<DialoguesViewProps> = ({
                             </div>
                             {canSpeak && !isHidden && (
                               <button
-                                onClick={() => speakSingleLine(text)}
+                                onClick={() =>
+                                  speakEnglishText(text, {
+                                    preferredVoiceURI: voicePrefs.preferredVoiceURI,
+                                    rate: voicePrefs.rate,
+                                  })
+                                }
                                 aria-label="Listen to line"
                                 className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 shrink-0"
                               >

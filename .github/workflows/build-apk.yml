@@ -22,7 +22,7 @@ jobs:
 
       - name: Install dependencies and build offline web bundle
         run: |
-          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+          if [ -f package-lock.json ]; then npm ci --legacy-peer-deps; else npm install --legacy-peer-deps; fi
           npm run build
 
       - name: Sync web bundle into Android assets

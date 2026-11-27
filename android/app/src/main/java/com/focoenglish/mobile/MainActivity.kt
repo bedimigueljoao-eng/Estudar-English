@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.speech.tts.TextToSpeech
 import android.webkit.JavascriptInterface
 import android.webkit.PermissionRequest
 import android.webkit.ValueCallback
@@ -23,11 +24,14 @@ import androidx.core.content.ContextCompat
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
 import org.json.JSONObject
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
+    private var textToSpeech: TextToSpeech? = null
+    private var ttsReady: Boolean = false
 
     private val fileChooserLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -52,6 +56,13 @@ class MainActivity : AppCompatActivity() {
 
         webView = WebView(this)
         setContentView(webView)
+
+        textToSpeech = TextToSpeech(this) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                textToSpeech?.language = Locale.US
+                ttsReady = true
+            }
+        }
 
         val assetLoader = WebViewAssetLoader.Builder()
             .addPathHandler(
@@ -229,5 +240,23 @@ class MainActivity : AppCompatActivity() {
             }
             return granted
         }
+
+        @JavascriptInterface
+        fun speakText(text: String, rate: Float) {
+            if (!ttsReady) return
+            textToSpeech?.setSpeechRate(rate.coerceIn(0.6f, 1.4f))
+            textToSpeech?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "foco_tts_${System.currentTimeMillis()}")
+        }
+
+        @JavascriptInterface
+        fun stopSpeaking() {
+            textToSpeech?.stop()
+        }
+    }
+
+    override fun onDestroy() {
+        textToSpeech?.stop()
+        textToSpeech?.shutdown()
+        super.onDestroy()
     }
 }

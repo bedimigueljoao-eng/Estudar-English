@@ -16,6 +16,8 @@ interface FocoAndroidBridgeInterface {
   stopSession(): void;
   getActiveSessionJson(): string;
   requestNotificationPermission(): boolean;
+  speakText?(text: string, rate: number): void;
+  stopSpeaking?(): void;
 }
 
 declare global {
