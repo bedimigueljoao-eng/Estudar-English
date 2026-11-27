@@ -251,8 +251,10 @@ export default function App() {
       const fmtTime = (d: Date) =>
         `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
+      const isLesson = prev.activeTimer.studyMode === 'lesson';
       const newSession: StudySession = {
         id: prev.activeTimer.sessionId ?? `timer-${now}`,
+        studyMode: prev.activeTimer.studyMode,
         date: getTodayISO(),
         startTime: fmtTime(startDate),
         endTime: fmtTime(endDate),
@@ -262,9 +264,11 @@ export default function App() {
           prev.activeTimer.activity === 'Custom Activities'
             ? prev.activeTimer.customActivityName
             : undefined,
-        topicId: prev.activeTimer.topicId,
-        topicTitle: prev.activeTimer.topicTitle,
-        skill: prev.activeTimer.skill,
+        topicId: isLesson ? prev.activeTimer.topicId || undefined : undefined,
+        topicTitle: isLesson ? prev.activeTimer.topicTitle : '',
+        skill: isLesson
+          ? prev.activeTimer.skill
+          : prev.activeTimer.skill ?? ACTIVITY_DEFAULT_SKILL[prev.activeTimer.activity],
         level: prev.activeTimer.level,
         notes: prev.activeTimer.notes,
         source: 'timer',
@@ -325,19 +329,20 @@ export default function App() {
     (activity: TimerActivity, topic?: RoadmapTopic) => {
       updateState((prev) => {
         const now = Date.now();
-        const targetTopic = topic ?? prev.topics[0];
+        const isLesson = Boolean(topic);
         const nextTimer: ActiveTimerState = {
           sessionId: `sess-${now}`,
+          studyMode: isLesson ? 'lesson' : 'skill',
           status: 'running',
           startedAtMs: now,
           lastResumedAtMs: now,
           accumulatedMs: 0,
           activity,
           customActivityName: '',
-          topicId: targetTopic.id,
-          topicTitle: targetTopic.title,
-          skill: ACTIVITY_DEFAULT_SKILL[activity],
-          level: targetTopic.level,
+          topicId: topic ? topic.id : '',
+          topicTitle: topic ? topic.title : '',
+          skill: isLesson ? null : ACTIVITY_DEFAULT_SKILL[activity],
+          level: topic ? topic.level : prev.goals.currentLevel,
           notes: '',
         };
         syncNativeTimerStart(nextTimer);
@@ -683,15 +688,20 @@ export default function App() {
               notificationsEnabled={state.settings.notificationsEnabled}
               onUpdateTimerConfig={(patch) =>
                 updateState((prev) => {
+                  const nextMode = patch.studyMode ?? prev.activeTimer.studyMode;
                   const nextActivity = patch.activity ?? prev.activeTimer.activity;
                   const nextSkill =
-                    patch.skill ??
-                    (patch.activity ? ACTIVITY_DEFAULT_SKILL[nextActivity] : prev.activeTimer.skill);
+                    patch.skill !== undefined
+                      ? patch.skill
+                      : nextMode === 'skill' && patch.activity
+                        ? ACTIVITY_DEFAULT_SKILL[nextActivity]
+                        : prev.activeTimer.skill;
                   return {
                     ...prev,
                     activeTimer: {
                       ...prev.activeTimer,
                       ...patch,
+                      studyMode: nextMode,
                       skill: nextSkill,
                     },
                   };

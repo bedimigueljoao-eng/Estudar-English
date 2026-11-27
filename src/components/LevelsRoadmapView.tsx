@@ -461,7 +461,7 @@ export const LevelsRoadmapView: React.FC<LevelsRoadmapViewProps> = ({
                   <div className="flex items-center gap-1 shrink-0">
                     <button
                       onClick={() => onStartTimerForTopic(topic)}
-                      title="Practice speaking on this lesson"
+                      title="Start Lesson Study timer (skill link optional)"
                       className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg bg-teal-600/10 hover:bg-teal-600/20 text-teal-700 dark:text-teal-400 transition"
                     >
                       <Play className="h-4 w-4" />

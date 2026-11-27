@@ -80,12 +80,22 @@ export function computeDashboardMetrics(state: AppState) {
   let weekSeconds = 0;
   let monthSeconds = 0;
   let speakingSeconds = 0;
+  let skillModeSeconds = 0;
+  let lessonModeSeconds = 0;
 
   for (const s of state.sessions) {
     totalSeconds += s.durationSeconds;
     if (s.date === today) todaySeconds += s.durationSeconds;
     if (s.date >= weekStart && s.date <= today) weekSeconds += s.durationSeconds;
     if (s.date.startsWith(monthPrefix)) monthSeconds += s.durationSeconds;
+
+    const resolvedMode = s.studyMode ?? (s.topicId ? 'lesson' : 'skill');
+    if (resolvedMode === 'lesson') {
+      lessonModeSeconds += s.durationSeconds;
+    } else {
+      skillModeSeconds += s.durationSeconds;
+    }
+
     if (
       s.skill === 'Speaking' ||
       s.skill === 'Pronunciation' ||
@@ -107,6 +117,8 @@ export function computeDashboardMetrics(state: AppState) {
     weekSeconds,
     monthSeconds,
     speakingSeconds,
+    skillModeSeconds,
+    lessonModeSeconds,
     speakingSharePercent: totalSeconds > 0 ? Math.round((speakingSeconds / totalSeconds) * 100) : 0,
     streakDays: computeStreakDays(state.sessions),
     dailyPercent: Math.min(100, Math.round((todaySeconds / dailyTargetSec) * 100)),
@@ -122,6 +134,7 @@ export function computeSkillBreakdown(sessions: StudySession[]) {
   const map = new Map<SkillType, number>();
   let totalSeconds = 0;
   for (const s of sessions) {
+    if (!s.skill) continue;
     map.set(s.skill, (map.get(s.skill) ?? 0) + s.durationSeconds);
     totalSeconds += s.durationSeconds;
   }

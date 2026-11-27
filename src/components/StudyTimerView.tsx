@@ -91,9 +91,10 @@ export const StudyTimerView: React.FC<StudyTimerViewProps> = ({
   }, []);
 
   const elapsedSeconds = Math.floor(computeElapsedMs(timer, nowMs) / 1000);
+  const isLessonMode = timer.studyMode === 'lesson';
   const selectedTopic = useMemo(
-    () => topics.find((t) => t.id === timer.topicId) ?? topics[0],
-    [topics, timer.topicId]
+    () => (isLessonMode ? topics.find((t) => t.id === timer.topicId) ?? topics[0] : undefined),
+    [isLessonMode, topics, timer.topicId]
   );
 
   const openEditTimeModal = () => {
@@ -129,7 +130,9 @@ export const StudyTimerView: React.FC<StudyTimerViewProps> = ({
       mr.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
         const blob = new Blob(chunksRef.current, { type: mr.mimeType || 'audio/webm' });
-        const label = `${timer.level} · ${timer.topicTitle}`;
+        const label = isLessonMode && timer.topicTitle
+          ? `${timer.level} · ${timer.topicTitle}`
+          : `${timer.level} · ${timer.skill ?? timer.activity} (Skill)`;
         await saveSpeakingAudioNote(label, blob);
         const updated = await listSpeakingAudioNotes();
         setAudioNotes(updated);
@@ -159,6 +162,27 @@ export const StudyTimerView: React.FC<StudyTimerViewProps> = ({
       ? timer.customActivityName
       : timer.activity;
 
+  const switchStudyMode = (mode: 'skill' | 'lesson') => {
+    if (mode === timer.studyMode) return;
+    if (mode === 'skill') {
+      onUpdateTimerConfig({
+        studyMode: 'skill',
+        topicId: '',
+        topicTitle: '',
+        skill: timer.skill ?? 'Speaking',
+      });
+    } else {
+      const firstMatch = topics.find((t) => t.level === timer.level) ?? topics[0];
+      onUpdateTimerConfig({
+        studyMode: 'lesson',
+        topicId: firstMatch?.id ?? '',
+        topicTitle: firstMatch?.title ?? '',
+        level: firstMatch?.level ?? timer.level,
+        skill: null,
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -187,13 +211,31 @@ export const StudyTimerView: React.FC<StudyTimerViewProps> = ({
       <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-8">
         <div className="flex flex-col items-center text-center space-y-5">
           <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
-            <span>{displayActivity}</span>
+            <span className="font-semibold text-teal-700 dark:text-teal-400">
+              {isLessonMode ? 'Lesson Study' : 'Skill Practice'}
+            </span>
             <span aria-hidden="true"> · </span>
-            <span>{timer.skill}</span>
+            <span>{displayActivity}</span>
+            {timer.skill && (
+              <>
+                <span aria-hidden="true"> · </span>
+                <span>{timer.skill}</span>
+              </>
+            )}
             <span aria-hidden="true"> · </span>
             <span>{timer.level}</span>
-            <span aria-hidden="true"> · </span>
-            <span className="text-slate-800 dark:text-slate-200">{timer.topicTitle}</span>
+            {isLessonMode && timer.topicTitle && (
+              <>
+                <span aria-hidden="true"> · </span>
+                <span className="text-slate-800 dark:text-slate-200">{timer.topicTitle}</span>
+              </>
+            )}
+            {isLessonMode && !timer.skill && (
+              <>
+                <span aria-hidden="true"> · </span>
+                <span>No Skill Linked</span>
+              </>
+            )}
           </div>
 
           <div className="font-mono text-5xl sm:text-6xl font-bold tracking-tight tabular-nums text-slate-900 dark:text-slate-50">
@@ -260,110 +302,200 @@ export const StudyTimerView: React.FC<StudyTimerViewProps> = ({
           </div>
         </div>
 
-        {/* Configuration Fields */}
-        <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-          <label className="block">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              Study Activity (16 Modes)
-            </span>
-            <select
-              value={timer.activity}
-              onChange={(e) => onUpdateTimerConfig({ activity: e.target.value as TimerActivity })}
-              className="mt-1 w-full min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 text-slate-900 dark:text-slate-100"
-            >
-              {ALL_ACTIVITIES.map((act) => (
-                <option key={act} value={act}>
-                  {act}
-                </option>
-              ))}
-            </select>
-          </label>
+        {/* Study Mode Separation + Configuration Fields */}
+        <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-800 space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                What are you timing right now?
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {isLessonMode
+                  ? 'Lesson Study logs time to a Roadmap Lesson. Linking a Skill is optional.'
+                  : 'Skill Practice logs pure skill time independently — no Roadmap Lesson is attached.'}
+              </p>
+            </div>
+            <div className="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-slate-800 shrink-0">
+              <button
+                type="button"
+                onClick={() => switchStudyMode('skill')}
+                className={`min-h-[38px] px-4 rounded-lg text-xs font-semibold transition ${
+                  !isLessonMode
+                    ? 'bg-teal-600 text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                Skill Practice
+              </button>
+              <button
+                type="button"
+                onClick={() => switchStudyMode('lesson')}
+                className={`min-h-[38px] px-4 rounded-lg text-xs font-semibold transition ${
+                  isLessonMode
+                    ? 'bg-teal-600 text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                Lesson Study
+              </button>
+            </div>
+          </div>
 
-          <label className="block">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Skill</span>
-            <select
-              value={timer.skill}
-              onChange={(e) => onUpdateTimerConfig({ skill: e.target.value as SkillType })}
-              className="mt-1 w-full min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 text-slate-900 dark:text-slate-100"
-            >
-              {ALL_SKILLS.map((sk) => (
-                <option key={sk} value={sk}>
-                  {sk}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+            {isLessonMode ? (
+              <>
+                <label className="block sm:col-span-2">
+                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Roadmap Lesson
+                  </span>
+                  <select
+                    value={timer.topicId || selectedTopic?.id || ''}
+                    onChange={(e) => {
+                      const found = topics.find((t) => t.id === e.target.value);
+                      if (found) {
+                        onUpdateTimerConfig({
+                          topicId: found.id,
+                          topicTitle: found.title,
+                          level: found.level,
+                        });
+                      }
+                    }}
+                    className="mt-1 w-full min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 text-slate-900 dark:text-slate-100"
+                  >
+                    {topics.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        [{t.level}] {t.title}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-          <label className="block">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              CEFR Level
-            </span>
-            <select
-              value={timer.level}
-              onChange={(e) => onUpdateTimerConfig({ level: e.target.value as CEFRLevel })}
-              className="mt-1 w-full min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 text-slate-900 dark:text-slate-100"
-            >
-              {ALL_LEVELS.map((lvl) => (
-                <option key={lvl} value={lvl}>
-                  {lvl}
-                </option>
-              ))}
-            </select>
-          </label>
+                <label className="block">
+                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Link to Skill (Optional)
+                  </span>
+                  <select
+                    value={timer.skill ?? ''}
+                    onChange={(e) =>
+                      onUpdateTimerConfig({
+                        skill: e.target.value ? (e.target.value as SkillType) : null,
+                      })
+                    }
+                    className="mt-1 w-full min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 text-slate-900 dark:text-slate-100"
+                  >
+                    <option value="">None (Lesson Only)</option>
+                    {ALL_SKILLS.map((sk) => (
+                      <option key={sk} value={sk}>
+                        {sk}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-          <label className="block">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              Linked Lesson / Topic
-            </span>
-            <select
-              value={timer.topicId}
-              onChange={(e) => {
-                const found = topics.find((t) => t.id === e.target.value);
-                if (found) {
-                  onUpdateTimerConfig({
-                    topicId: found.id,
-                    topicTitle: found.title,
-                    level: found.level,
-                  });
-                }
-              }}
-              className="mt-1 w-full min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 text-slate-900 dark:text-slate-100"
-            >
-              {topics.map((t) => (
-                <option key={t.id} value={t.id}>
-                  [{t.level}] {t.title}
-                </option>
-              ))}
-            </select>
-          </label>
+                <label className="block">
+                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Study Activity
+                  </span>
+                  <select
+                    value={timer.activity}
+                    onChange={(e) => onUpdateTimerConfig({ activity: e.target.value as TimerActivity })}
+                    className="mt-1 w-full min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 text-slate-900 dark:text-slate-100"
+                  >
+                    {ALL_ACTIVITIES.map((act) => (
+                      <option key={act} value={act}>
+                        {act}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </>
+            ) : (
+              <>
+                <label className="block">
+                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Practiced Skill
+                  </span>
+                  <select
+                    value={timer.skill ?? 'Speaking'}
+                    onChange={(e) => onUpdateTimerConfig({ skill: e.target.value as SkillType })}
+                    className="mt-1 w-full min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 text-slate-900 dark:text-slate-100"
+                  >
+                    {ALL_SKILLS.map((sk) => (
+                      <option key={sk} value={sk}>
+                        {sk}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-          {timer.activity === 'Custom Activities' && (
-            <label className="block sm:col-span-2">
+                <label className="block sm:col-span-2">
+                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Study Activity (16 Modes)
+                  </span>
+                  <select
+                    value={timer.activity}
+                    onChange={(e) => onUpdateTimerConfig({ activity: e.target.value as TimerActivity })}
+                    className="mt-1 w-full min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 text-slate-900 dark:text-slate-100"
+                  >
+                    {ALL_ACTIVITIES.map((act) => (
+                      <option key={act} value={act}>
+                        {act}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block">
+                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                    CEFR Level
+                  </span>
+                  <select
+                    value={timer.level}
+                    onChange={(e) => onUpdateTimerConfig({ level: e.target.value as CEFRLevel })}
+                    className="mt-1 w-full min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 text-slate-900 dark:text-slate-100"
+                  >
+                    {ALL_LEVELS.map((lvl) => (
+                      <option key={lvl} value={lvl}>
+                        {lvl}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </>
+            )}
+
+            {timer.activity === 'Custom Activities' && (
+              <label className="block sm:col-span-2">
+                <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                  Custom Activity Name
+                </span>
+                <input
+                  type="text"
+                  value={timer.customActivityName}
+                  onChange={(e) => onUpdateTimerConfig({ customActivityName: e.target.value })}
+                  placeholder="e.g., Anki Spoken Sentence Mining"
+                  className="mt-1 w-full min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 text-slate-900 dark:text-slate-100"
+                />
+              </label>
+            )}
+
+            <label className="block sm:col-span-2 lg:col-span-4">
               <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                Custom Activity Name
+                Session Study Notes
               </span>
               <input
                 type="text"
-                value={timer.customActivityName}
-                onChange={(e) => onUpdateTimerConfig({ customActivityName: e.target.value })}
-                placeholder="e.g., Anki Spoken Sentence Mining"
+                value={timer.notes}
+                onChange={(e) => onUpdateTimerConfig({ notes: e.target.value })}
+                placeholder={
+                  isLessonMode
+                    ? 'What did you consolidate in this lesson?'
+                    : 'What did you practice in this skill session?'
+                }
                 className="mt-1 w-full min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 text-slate-900 dark:text-slate-100"
               />
             </label>
-          )}
-
-          <label className="block sm:col-span-2 lg:col-span-4">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              Session Study Notes
-            </span>
-            <input
-              type="text"
-              value={timer.notes}
-              onChange={(e) => onUpdateTimerConfig({ notes: e.target.value })}
-              placeholder="What did you practice, shadow, or learn in this session?"
-              className="mt-1 w-full min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 text-slate-900 dark:text-slate-100"
-            />
-          </label>
+          </div>
         </div>
       </section>
 
@@ -397,13 +529,22 @@ export const StudyTimerView: React.FC<StudyTimerViewProps> = ({
             )}
           </div>
 
-          {selectedTopic && (
+          {selectedTopic ? (
             <div className="rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 p-3.5 space-y-1.5">
               <p className="text-xs font-semibold text-teal-700 dark:text-teal-400">
-                Prompt · {selectedTopic.title}
+                Lesson Prompt · {selectedTopic.title}
               </p>
               <p className="text-sm text-slate-700 dark:text-slate-300">
                 {selectedTopic.speakingFocusPrompt}
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 p-3.5 space-y-1.5">
+              <p className="text-xs font-semibold text-teal-700 dark:text-teal-400">
+                Independent Skill Practice · {timer.skill ?? 'Speaking'} ({timer.level})
+              </p>
+              <p className="text-sm text-slate-700 dark:text-slate-300">
+                Record a 60–90 second voice self-check to test fluency and pronunciation for this skill session.
               </p>
             </div>
           )}
@@ -461,7 +602,10 @@ export const StudyTimerView: React.FC<StudyTimerViewProps> = ({
                 🎧 {displayActivity} {timer.level}
               </p>
               <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                {timer.topicTitle} · {timer.status === 'running' ? 'Counting in background' : timer.status === 'paused' ? 'Paused' : 'Ready to start'}
+                {isLessonMode
+                  ? `${timer.topicTitle || 'Lesson Study'}${timer.skill ? ` (${timer.skill})` : ' (Lesson Only)'}`
+                  : `${timer.skill ?? displayActivity} (Skill Practice)`}{' '}
+                · {timer.status === 'running' ? 'Counting in background' : timer.status === 'paused' ? 'Paused' : 'Ready to start'}
               </p>
             </div>
             <div className="flex items-center gap-2 pt-1 border-t border-slate-200 dark:border-slate-800">

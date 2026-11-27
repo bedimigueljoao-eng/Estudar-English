@@ -48,8 +48,11 @@ export interface RoadmapTopic {
   notes?: string;
 }
 
+export type StudyFocusMode = 'skill' | 'lesson';
+
 export interface StudySession {
   id: string;
+  studyMode?: StudyFocusMode; // 'skill' = pure skill time (no lesson); 'lesson' = roadmap lesson study (optional skill)
   date: string; // YYYY-MM-DD
   startTime: string; // HH:mm
   endTime: string; // HH:mm
@@ -58,7 +61,7 @@ export interface StudySession {
   customActivityName?: string;
   topicId?: string;
   topicTitle: string;
-  skill: SkillType;
+  skill: SkillType | null;
   level: CEFRLevel;
   notes: string;
   source: 'timer' | 'manual' | 'v1_import';
@@ -67,6 +70,7 @@ export interface StudySession {
 
 export interface ActiveTimerState {
   sessionId: string | null;
+  studyMode: StudyFocusMode;
   status: 'idle' | 'running' | 'paused';
   startedAtMs: number | null; // initial start wall-clock
   lastResumedAtMs: number | null; // current running segment start
@@ -75,7 +79,7 @@ export interface ActiveTimerState {
   customActivityName: string;
   topicId: string;
   topicTitle: string;
-  skill: SkillType;
+  skill: SkillType | null;
   level: CEFRLevel;
   notes: string;
 }

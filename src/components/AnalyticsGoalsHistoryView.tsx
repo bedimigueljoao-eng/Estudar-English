@@ -20,6 +20,7 @@ import type {
   AppState,
   CEFRLevel,
   SkillType,
+  StudyFocusMode,
   StudyGoals,
   StudySession,
   TimerActivity,
@@ -38,6 +39,7 @@ import { MonthlyTrendChart, SkillBarChart, SkillPieChart } from './SkillCharts';
 
 /* ---------------- SKILL ANALYSIS & STATISTICS ---------------- */
 export const SkillAnalysisView: React.FC<{ state: AppState }> = ({ state }) => {
+  const metrics = useMemo(() => computeDashboardMetrics(state), [state]);
   const breakdown = useMemo(() => computeSkillBreakdown(state.sessions), [state.sessions]);
   const monthlyTrend = useMemo(() => computeMonthlyTrend(state.sessions, 6), [state.sessions]);
   const achievements = useMemo(() => evaluateAchievements(state), [state]);
@@ -66,8 +68,45 @@ export const SkillAnalysisView: React.FC<{ state: AppState }> = ({ state }) => {
           Skill Analysis & Achievements
         </h1>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          Combined metrics from background timer sessions, manual time entries, and V1 imports.
+          Skill time is tracked separately from Roadmap Lesson time (unless you optionally link a skill to a lesson).
         </p>
+      </div>
+
+      {/* Skill Practice vs Lesson Study Separation Summary */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+            Independent Skill Practice
+          </p>
+          <p className="mt-1 font-mono text-xl font-bold tabular-nums text-teal-700 dark:text-teal-400">
+            {formatHoursMinutes(metrics.skillModeSeconds)}
+          </p>
+          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+            Focused directly on skills (no lesson attached)
+          </p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+            Roadmap Lesson Study
+          </p>
+          <p className="mt-1 font-mono text-xl font-bold tabular-nums text-blue-600 dark:text-blue-400">
+            {formatHoursMinutes(metrics.lessonModeSeconds)}
+          </p>
+          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+            Dedicated to CEFR lessons (skill link optional)
+          </p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+            Combined Total Study
+          </p>
+          <p className="mt-1 font-mono text-xl font-bold tabular-nums text-slate-900 dark:text-slate-50">
+            {formatHoursMinutes(metrics.totalSeconds)}
+          </p>
+          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+            Counts toward goals, streak & milestones
+          </p>
+        </div>
       </div>
 
       {/* Pie + Bar Charts */}
@@ -414,12 +453,14 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
   onAddManualSession,
   onDeleteSession,
 }) => {
+  const [historyFilter, setHistoryFilter] = useState<'all' | 'skill' | 'lesson'>('all');
   const [modalOpen, setModalOpen] = useState(false);
+  const [studyMode, setStudyMode] = useState<StudyFocusMode>('skill');
   const [date, setDate] = useState(getTodayISO());
   const [hours, setHours] = useState(1);
   const [minutes, setMinutes] = useState(30);
   const [topicId, setTopicId] = useState(state.topics[0]?.id ?? '');
-  const [skill, setSkill] = useState<SkillType>('Listening');
+  const [skill, setSkill] = useState<SkillType | ''>('Listening');
   const [level, setLevel] = useState<CEFRLevel>(state.goals.currentLevel);
   const [activity, setActivity] = useState<TimerActivity>('Listening Active');
   const [notes, setNotes] = useState('');
@@ -429,10 +470,11 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
   const monthPrefix = getMonthPrefixISO();
 
   const summarizeBySkill = (list: StudySession[]) => {
-    const map = new Map<SkillType, number>();
+    const map = new Map<string, number>();
     let total = 0;
     for (const s of list) {
-      map.set(s.skill, (map.get(s.skill) ?? 0) + s.durationSeconds);
+      const label = s.skill ?? 'Lesson Only';
+      map.set(label, (map.get(label) ?? 0) + s.durationSeconds);
       total += s.durationSeconds;
     }
     const items = Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
@@ -448,21 +490,47 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
   );
   const allSummary = summarizeBySkill(state.sessions);
 
+  const visibleSessions = useMemo(() => {
+    return state.sessions
+      .filter((s) => {
+        if (historyFilter === 'all') return true;
+        const resolved = s.studyMode ?? (s.topicId ? 'lesson' : 'skill');
+        return resolved === historyFilter;
+      })
+      .slice()
+      .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
+  }, [state.sessions, historyFilter]);
+
+  const handleSwitchModalMode = (mode: StudyFocusMode) => {
+    setStudyMode(mode);
+    if (mode === 'skill') {
+      if (!skill) setSkill('Listening');
+    } else {
+      setSkill('');
+    }
+  };
+
   const handleAddManual = (e: React.FormEvent) => {
     e.preventDefault();
     const totalSeconds = Math.max(60, hours * 3600 + minutes * 60);
-    const topic = state.topics.find((t) => t.id === topicId);
+    const isLesson = studyMode === 'lesson';
+    const topic = isLesson ? state.topics.find((t) => t.id === topicId) ?? state.topics[0] : undefined;
+    const resolvedSkill: SkillType | null = isLesson
+      ? skill || null
+      : (skill || 'Listening');
+
     onAddManualSession({
       id: `manual-${Date.now()}`,
+      studyMode,
       date,
       startTime: '09:00',
       endTime: '10:00',
       durationSeconds: totalSeconds,
       activity,
       topicId: topic?.id,
-      topicTitle: topic?.title ?? 'Manual Study Entry',
-      skill,
-      level,
+      topicTitle: topic?.title ?? '',
+      skill: resolvedSkill,
+      level: topic ? topic.level : level,
       notes: notes.trim(),
       source: 'manual',
       createdAt: Date.now(),
@@ -479,7 +547,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
             Study History & Manual Time Entry
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Includes timer logs, manually added hours, and imported FOCOENGLISH V1 records.
+            Includes separated Skill Practice sessions, Lesson Study sessions, manual hours, and V1 imports.
           </p>
         </div>
         <button
@@ -524,27 +592,75 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
         ))}
       </div>
 
+      {/* Filter: All vs Skill Practice vs Lesson Study */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="inline-flex p-1 rounded-xl bg-slate-200/70 dark:bg-slate-800/80">
+          {(
+            [
+              ['all', 'All Sessions'],
+              ['skill', 'Skill Practice'],
+              ['lesson', 'Lesson Study'],
+            ] as const
+          ).map(([val, lbl]) => (
+            <button
+              key={val}
+              onClick={() => setHistoryFilter(val)}
+              className={`min-h-[36px] px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                historyFilter === val
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-50 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              {lbl}
+            </button>
+          ))}
+        </div>
+        <span className="font-mono text-xs text-slate-500 dark:text-slate-400">
+          {visibleSessions.length} entries
+        </span>
+      </div>
+
       {/* Full Session Log */}
       <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 divide-y divide-slate-100 dark:divide-slate-800">
-        {state.sessions.length === 0 ? (
+        {visibleSessions.length === 0 ? (
           <div className="p-8 text-center text-sm text-slate-500">
-            No study sessions recorded yet. Start the Study Timer or insert manual hours.
+            No study sessions match this filter yet.
           </div>
         ) : (
-          state.sessions
-            .slice()
-            .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt)
-            .map((s) => (
+          visibleSessions.map((s) => {
+            const resolvedMode: StudyFocusMode = s.studyMode ?? (s.topicId ? 'lesson' : 'skill');
+            const primaryHeadline =
+              resolvedMode === 'lesson'
+                ? s.topicTitle || 'Roadmap Lesson Study'
+                : `${s.skill ?? s.activity} Practice`;
+
+            return (
               <div key={s.id} className="p-4 flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3 min-w-0">
-                  <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400">
+                  <div
+                    className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 ${
+                      resolvedMode === 'lesson'
+                        ? 'text-blue-600 dark:text-blue-400'
+                        : 'text-teal-700 dark:text-teal-400'
+                    }`}
+                  >
                     <Clock className="h-4 w-4" />
                   </div>
                   <div className="min-w-0 space-y-0.5">
                     <p className="text-xs text-slate-500 dark:text-slate-400">
                       <span className="font-mono">{s.date}</span>
                       <span aria-hidden="true"> · </span>
-                      <span>{s.skill}</span>
+                      <span
+                        className={`font-semibold ${
+                          resolvedMode === 'lesson'
+                            ? 'text-blue-600 dark:text-blue-400'
+                            : 'text-teal-700 dark:text-teal-400'
+                        }`}
+                      >
+                        {resolvedMode === 'lesson' ? 'Lesson' : 'Skill'}
+                      </span>
+                      <span aria-hidden="true"> · </span>
+                      <span>{s.skill ?? 'No Skill Linked'}</span>
                       <span aria-hidden="true"> · </span>
                       <span>{s.level}</span>
                       <span aria-hidden="true"> · </span>
@@ -555,7 +671,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                       </span>
                     </p>
                     <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
-                      {s.topicTitle}
+                      {primaryHeadline}
                     </p>
                     {s.notes && (
                       <p className="text-xs text-slate-600 dark:text-slate-400">{s.notes}</p>
@@ -575,7 +691,8 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                   </button>
                 </div>
               </div>
-            ))
+            );
+          })
         )}
       </div>
 
@@ -592,6 +709,32 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
               </button>
             </div>
             <form onSubmit={handleAddManual} className="space-y-3.5 text-sm">
+              {/* Separated Study Mode Switcher */}
+              <div className="flex items-center justify-between gap-2 rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
+                <button
+                  type="button"
+                  onClick={() => handleSwitchModalMode('skill')}
+                  className={`flex-1 min-h-[38px] rounded-lg text-xs font-semibold transition ${
+                    studyMode === 'skill'
+                      ? 'bg-teal-600 text-white shadow-sm'
+                      : 'text-slate-600 dark:text-slate-300'
+                  }`}
+                >
+                  Skill Practice (No Lesson)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSwitchModalMode('lesson')}
+                  className={`flex-1 min-h-[38px] rounded-lg text-xs font-semibold transition ${
+                    studyMode === 'lesson'
+                      ? 'bg-teal-600 text-white shadow-sm'
+                      : 'text-slate-600 dark:text-slate-300'
+                  }`}
+                >
+                  Lesson Study (Optional Skill)
+                </button>
+              </div>
+
               <div className="grid grid-cols-3 gap-3">
                 <label className="block">
                   <span className="text-xs font-medium text-slate-500">Date</span>
@@ -626,66 +769,106 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                   />
                 </label>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <label className="block">
-                  <span className="text-xs font-medium text-slate-500">Skill</span>
-                  <select
-                    value={skill}
-                    onChange={(e) => setSkill(e.target.value as SkillType)}
-                    className="mt-1 w-full min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3"
-                  >
-                    {ALL_SKILLS.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="block">
-                  <span className="text-xs font-medium text-slate-500">Level</span>
-                  <select
-                    value={level}
-                    onChange={(e) => setLevel(e.target.value as CEFRLevel)}
-                    className="mt-1 w-full min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3"
-                  >
-                    {ALL_LEVELS.map((l) => (
-                      <option key={l} value={l}>
-                        {l}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <label className="block">
-                  <span className="text-xs font-medium text-slate-500">Topic</span>
-                  <select
-                    value={topicId}
-                    onChange={(e) => setTopicId(e.target.value)}
-                    className="mt-1 w-full min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3"
-                  >
-                    {state.topics.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        [{t.level}] {t.title}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="block">
-                  <span className="text-xs font-medium text-slate-500">Activity</span>
-                  <select
-                    value={activity}
-                    onChange={(e) => setActivity(e.target.value as TimerActivity)}
-                    className="mt-1 w-full min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3"
-                  >
-                    {ALL_ACTIVITIES.map((a) => (
-                      <option key={a} value={a}>
-                        {a}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
+
+              {studyMode === 'lesson' ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="block sm:col-span-2">
+                    <span className="text-xs font-medium text-slate-500">Roadmap Lesson</span>
+                    <select
+                      value={topicId}
+                      onChange={(e) => {
+                        setTopicId(e.target.value);
+                        const found = state.topics.find((t) => t.id === e.target.value);
+                        if (found) setLevel(found.level);
+                      }}
+                      className="mt-1 w-full min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3"
+                    >
+                      {state.topics.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          [{t.level}] {t.title}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-medium text-slate-500">
+                      Link Skill (Optional)
+                    </span>
+                    <select
+                      value={skill}
+                      onChange={(e) => setSkill(e.target.value as SkillType | '')}
+                      className="mt-1 w-full min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3"
+                    >
+                      <option value="">None (Lesson Only)</option>
+                      {ALL_SKILLS.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-medium text-slate-500">Activity</span>
+                    <select
+                      value={activity}
+                      onChange={(e) => setActivity(e.target.value as TimerActivity)}
+                      className="mt-1 w-full min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3"
+                    >
+                      {ALL_ACTIVITIES.map((a) => (
+                        <option key={a} value={a}>
+                          {a}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <label className="block">
+                    <span className="text-xs font-medium text-slate-500">Skill</span>
+                    <select
+                      value={skill || 'Listening'}
+                      onChange={(e) => setSkill(e.target.value as SkillType)}
+                      className="mt-1 w-full min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3"
+                    >
+                      {ALL_SKILLS.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-medium text-slate-500">Level</span>
+                    <select
+                      value={level}
+                      onChange={(e) => setLevel(e.target.value as CEFRLevel)}
+                      className="mt-1 w-full min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3"
+                    >
+                      {ALL_LEVELS.map((l) => (
+                        <option key={l} value={l}>
+                          {l}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-medium text-slate-500">Activity</span>
+                    <select
+                      value={activity}
+                      onChange={(e) => setActivity(e.target.value as TimerActivity)}
+                      className="mt-1 w-full min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3"
+                    >
+                      {ALL_ACTIVITIES.map((a) => (
+                        <option key={a} value={a}>
+                          {a}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              )}
+
               <label className="block">
                 <span className="text-xs font-medium text-slate-500">Notes</span>
                 <input

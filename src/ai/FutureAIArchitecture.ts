@@ -70,8 +70,10 @@ export class LocalDiagnosticHeuristicEngine implements FocoAIEnginePort {
     const totals = new Map<SkillType, number>();
     let totalSec = 0;
     for (const s of state.sessions) {
-      totals.set(s.skill, (totals.get(s.skill) ?? 0) + s.durationSeconds);
-      totalSec += s.durationSeconds;
+      if (s.skill) {
+        totals.set(s.skill, (totals.get(s.skill) ?? 0) + s.durationSeconds);
+        totalSec += s.durationSeconds;
+      }
     }
 
     const speakingSec = totals.get('Speaking') ?? 0;

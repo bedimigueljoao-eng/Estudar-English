@@ -126,11 +126,11 @@ export const DashboardJourneyView: React.FC<DashboardJourneyViewProps> = ({
 
           <div className="flex flex-wrap items-center gap-3">
             <button
-              onClick={() => onQuickStartTimer('Speaking', nextSpeakingTopic)}
+              onClick={() => onQuickStartTimer('Speaking')}
               className="min-h-[44px] inline-flex items-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-[0.98] px-5 py-2.5 text-sm font-semibold text-white transition"
             >
               <Mic className="h-4 w-4" />
-              <span className="whitespace-nowrap">Start Speaking Drill</span>
+              <span className="whitespace-nowrap">Practice Speaking (Skill)</span>
             </button>
             <button
               onClick={() => onNavigate('timer')}

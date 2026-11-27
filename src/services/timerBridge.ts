@@ -70,14 +70,19 @@ export async function syncNativeTimerStart(timer: ActiveTimerState): Promise<voi
     timer.activity === 'Custom Activities' && timer.customActivityName
       ? timer.customActivityName
       : timer.activity;
+  const skillLabel = timer.skill ?? 'Lesson Study';
+  const focusTitle =
+    timer.studyMode === 'lesson'
+      ? timer.topicTitle || 'Lesson Study'
+      : `${skillLabel} Practice`;
   const webViewBridge = getAndroidWebViewBridge();
   if (webViewBridge) {
     try {
       webViewBridge.startSession(
         activityLabel,
-        timer.skill,
+        skillLabel,
         timer.level,
-        timer.topicTitle,
+        focusTitle,
         timer.startedAtMs ?? Date.now(),
         timer.accumulatedMs
       );
@@ -88,9 +93,9 @@ export async function syncNativeTimerStart(timer: ActiveTimerState): Promise<voi
     try {
       await StudyTimerNative.startSession({
         activity: activityLabel,
-        skill: timer.skill,
+        skill: skillLabel,
         level: timer.level,
-        topicTitle: timer.topicTitle,
+        topicTitle: focusTitle,
         startedAtMs: timer.startedAtMs ?? Date.now(),
         accumulatedMs: timer.accumulatedMs,
       });
@@ -213,8 +218,19 @@ export function updateWebNotificationAndTitle(timer: ActiveTimerState): void {
   const elapsedSec = Math.floor(computeElapsedMs(timer) / 1000);
   const clock = formatHMS(elapsedSec);
 
+  const skillOrModeLabel =
+    timer.studyMode === 'lesson'
+      ? timer.skill
+        ? `Lesson · ${timer.skill}`
+        : 'Lesson Study'
+      : timer.skill ?? timer.activity;
+  const focusDetail =
+    timer.studyMode === 'lesson'
+      ? timer.topicTitle || 'Roadmap Lesson'
+      : `${timer.activity} (Skill Practice)`;
+
   if (timer.status === 'running') {
-    document.title = `${clock} · ${timer.skill} ${timer.level} · FOCOENGLISH`;
+    document.title = `${clock} · ${skillOrModeLabel} ${timer.level} · FOCOENGLISH`;
   } else if (timer.status === 'paused') {
     document.title = `Paused ${clock} · FOCOENGLISH`;
   } else {
@@ -225,8 +241,8 @@ export function updateWebNotificationAndTitle(timer: ActiveTimerState): void {
   if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
     try {
       navigator.mediaSession.metadata = new MediaMetadata({
-        title: `${timer.activity} (${timer.level})`,
-        artist: `${timer.topicTitle} · ${clock}`,
+        title: `${skillOrModeLabel} (${timer.level})`,
+        artist: `${focusDetail} · ${clock}`,
         album: 'FOCOENGLISH MOBILE V2.0',
       });
       navigator.mediaSession.playbackState = timer.status === 'running' ? 'playing' : 'paused';
@@ -249,9 +265,13 @@ export async function showBrowserPersistentNotification(
     timer.activity === 'Custom Activities' && timer.customActivityName
       ? timer.customActivityName
       : timer.activity;
+  const focusDetail =
+    timer.studyMode === 'lesson'
+      ? timer.topicTitle || 'Roadmap Lesson'
+      : `${timer.skill ?? label} (Skill Practice)`;
 
   const title = `FOCOENGLISH · ${label} ${timer.level}`;
-  const body = `${timer.status === 'paused' ? 'Paused' : 'Active'} · ${clock} · ${timer.topicTitle}`;
+  const body = `${timer.status === 'paused' ? 'Paused' : 'Active'} · ${clock} · ${focusDetail}`;
 
   try {
     if ('serviceWorker' in navigator) {
