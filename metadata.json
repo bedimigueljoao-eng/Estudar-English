@@ -1,0 +1,6 @@
+{
+  "name": "FOCOENGLISH MOBILE V2.0",
+  "description": "Offline-first English study management system from A1 to C2 with background study timers, speaking drills, deadlines, skill analytics, PDF vault, and native Android APK support.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

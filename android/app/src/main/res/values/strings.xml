@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FOCOENGLISH V2</string>
+    <string name="title_activity_main">FOCOENGLISH MOBILE V2.0</string>
+    <string name="package_name">com.focoenglish.mobile</string>
+    <string name="custom_url_scheme">focoenglish</string>
+    <string name="timer_channel_name">Active Study Timer</string>
+    <string name="timer_channel_desc">Persistent study timer status and controls</string>
+</resources>
